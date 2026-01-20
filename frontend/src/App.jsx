@@ -1,0 +1,65 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Navbar from './components/Navbar';
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import NewReservation from './pages/NewReservation';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import ReservationList from './pages/ReservationList';
+import Guests from './pages/Guests';
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen bg-gray-50">
+          <Navbar />
+          <Layout>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<NewReservation />} />
+              <Route path="/login" element={<Login />} />
+
+              {/* Protected Routes (Admin) */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reservations"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <ReservationList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reservations/new"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <NewReservation />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/guests"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Guests />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Layout>
+        </div>
+      </Router>
+    </AuthProvider>
+  );
+}
+
+export default App;
