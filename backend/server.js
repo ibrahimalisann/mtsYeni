@@ -23,11 +23,15 @@ const guestRoutes = require('./routes/guests');
 const reservationRoutes = require('./routes/reservations');
 const dashboardRoutes = require('./routes/dashboard');
 const authRoutes = require('./routes/auth');
+const presetRoutes = require('./routes/presets');
+const settingsRoutes = require('./routes/settings');
 
 app.use('/api/guests', guestRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/presets', presetRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/', (req, res) => {
     res.send('Guest Tracking System API is running');

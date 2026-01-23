@@ -1,0 +1,100 @@
+{
+    "presets": [
+        {
+            "id": "KH",
+            "label": "KH",
+            "data": {
+                "firstName": "Kemal",
+                "lastName": "Hasan",
+                "phone": "+905551234567",
+                "email": "kemal@example.com",
+                "country": "Türkiye",
+                "city": "İstanbul"
+            }
+        },
+        {
+            "id": "GH",
+            "label": "GH",
+            "data": {
+                "firstName": "Gül",
+                "lastName": "Hanım",
+                "phone": "+905559876543",
+                "email": "gul@example.com",
+                "country": "Türkiye",
+                "city": "Ankara"
+            }
+        },
+        {
+            "id": "FL",
+            "label": "FL",
+            "data": {
+                "firstName": "Fatih",
+                "lastName": "Lopez",
+                "phone": "+905551112233",
+                "email": "fatih@example.com",
+                "country": "Türkiye",
+                "city": "İzmir"
+            }
+        },
+        {
+            "id": "FS",
+            "label": "FS",
+            "data": {
+                "firstName": "Ferdi",
+                "lastName": "Sarı",
+                "phone": "+905554445566",
+                "email": "ferdi@example.com",
+                "country": "Türkiye",
+                "city": "Bursa"
+            }
+        },
+        {
+            "id": "FP",
+            "label": "FP",
+            "data": {
+                "firstName": "Firuze",
+                "lastName": "Polat",
+                "phone": "+905557778899",
+                "email": "firuze@example.com",
+                "country": "Türkiye",
+                "city": "Antalya"
+            }
+        },
+        {
+            "id": "IN",
+            "label": "IN",
+            "data": {
+                "firstName": "İbrahim",
+                "lastName": "Nur",
+                "phone": "+905553334455",
+                "email": "ibrahim@example.com",
+                "country": "Türkiye",
+                "city": "Konya"
+            }
+        },
+        {
+            "id": "BE",
+            "label": "BE",
+            "data": {
+                "firstName": "Beyza",
+                "lastName": "Erdem",
+                "phone": "+905556667788",
+                "email": "beyza@example.com",
+                "country": "Türkiye",
+                "city": "Eskişehir"
+            }
+        },
+        {
+            "id": "BM",
+            "label": "BM",
+            "data": {
+                "firstName": "Burak",
+                "lastName": "Mert",
+                "phone": "+905559990011",
+                "email": "burak@example.com",
+                "country": "Türkiye",
+                "city": "Trabzon"
+            }
+        }
+    ]
+}

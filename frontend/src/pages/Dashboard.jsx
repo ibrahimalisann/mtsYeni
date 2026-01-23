@@ -8,28 +8,33 @@ const Dashboard = () => {
         arrivals: 0,
         departures: 0
     });
+    const [maxCapacity, setMaxCapacity] = useState(9);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchData = async () => {
             try {
-                // In a real scenario, use environment variable for API URL
-                const response = await axios.get('http://localhost:5000/api/dashboard');
-                setStats(response.data);
+                const [dashboardRes, settingsRes] = await Promise.all([
+                    axios.get('/dashboard'),
+                    axios.get('/settings')
+                ]);
+
+                setStats(dashboardRes.data);
+                if (settingsRes.data.maxCapacity) {
+                    setMaxCapacity(settingsRes.data.maxCapacity);
+                }
             } catch (error) {
-                console.error("Dashboard stats fetch failed:", error);
-                // Fallback for demo if backend is not running
-                setStats({ occupancy: 5, arrivals: 2, departures: 1 });
+                console.error("Dashboard fetch failed:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        fetchData();
     }, []);
 
     const cards = [
-        { title: 'Dolu Odalar', value: stats.occupancy, icon: BedDouble, color: 'text-blue-600', bg: 'bg-blue-50' },
+        { title: 'Dolu Kapasite', value: `${stats.occupancy} / ${maxCapacity}`, icon: BedDouble, color: 'text-blue-600', bg: 'bg-blue-50' },
         { title: 'Bugün Gelecek', value: stats.arrivals, icon: LogIn, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         { title: 'Bugün Gidecek', value: stats.departures, icon: LogOut, color: 'text-amber-600', bg: 'bg-amber-50' },
     ];

@@ -8,6 +8,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReservationList from './pages/ReservationList';
 import Guests from './pages/Guests';
+import Presets from './pages/Presets';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -51,6 +53,22 @@ function App() {
                 element={
                   <ProtectedRoute adminOnly>
                     <Guests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/presets"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Presets />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/settings"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Settings />
                   </ProtectedRoute>
                 }
               />

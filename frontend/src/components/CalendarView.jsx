@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import axios from '../axiosConfig';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, addDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -39,6 +40,21 @@ const getStatusLabel = (status) => {
 const CalendarView = ({ reservations, onUpdate }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedReservation, setSelectedReservation] = useState(null);
+    const [maxCapacity, setMaxCapacity] = useState(9);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response = await axios.get('/settings');
+                if (response.data.maxCapacity) {
+                    setMaxCapacity(response.data.maxCapacity);
+                }
+            } catch (error) {
+                console.error('Error fetching settings:', error);
+            }
+        };
+        fetchSettings();
+    }, []);
 
     const daysInMonth = useMemo(() => {
         const start = startOfWeek(startOfMonth(currentDate), { weekStartsOn: 1 });
@@ -119,8 +135,7 @@ const CalendarView = ({ reservations, onUpdate }) => {
                     const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                     const isCurrentDay = isToday(day);
 
-                    const MAX_CAPACITY = 9;
-                    const isFull = occupancy >= MAX_CAPACITY;
+                    const isFull = occupancy >= maxCapacity;
 
                     return (
                         <div key={dayKey} className={`bg-white min-h-[140px] p-2 flex flex-col group hover:bg-gray-50 transition-colors ${!isCurrentMonth ? 'bg-gray-50/50 text-gray-400' : ''}`}>
@@ -131,7 +146,7 @@ const CalendarView = ({ reservations, onUpdate }) => {
                                 </span>
                                 {occupancy > 0 && (
                                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isFull ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                        {occupancy}/9
+                                        {occupancy}/{maxCapacity}
                                     </span>
                                 )}
                             </div>
@@ -143,15 +158,7 @@ const CalendarView = ({ reservations, onUpdate }) => {
                                     const statusLabel = getStatusLabel(res.status);
                                     const guest = res.guest || {};
 
-                                    // Logic for visual continuity
-                                    const start = new Date(res.checkInDate); start.setHours(0, 0, 0, 0);
-                                    const end = new Date(res.checkOutDate); end.setHours(0, 0, 0, 0);
-                                    const current = new Date(day); current.setHours(0, 0, 0, 0);
-
-                                    const isStart = isSameDay(current, start);
-                                    // Last night of stay is the day before check-out
-                                    const nextDay = addDays(current, 1);
-                                    const isEnd = isSameDay(nextDay, end);
+                                    const location = res.registrar ? [res.registrar.city, res.registrar.country].filter(Boolean).join(', ') : '';
 
                                     return (
                                         <div
@@ -159,24 +166,19 @@ const CalendarView = ({ reservations, onUpdate }) => {
                                             onClick={() => setSelectedReservation(res)}
                                             className={`
                                                 text-[10px] px-1.5 py-1 border overflow-hidden cursor-pointer
-                                                hover:shadow-md hover:z-20 transition-shadow
+                                                hover:shadow-md hover:z-20 transition-all
                                                 ${colorClass}
-                                                ${isStart ? 'rounded-l-md ml-0' : '-ml-2 border-l-0'} 
-                                                ${isEnd ? 'rounded-r-md mr-0' : '-mr-2 border-r-0'}
+                                                rounded-md mb-1
                                                 relative z-10
                                             `}
-                                            title={`${guest.firstName} ${guest.lastName} (${res.guestCount}) - ${statusLabel}`}
+                                            title={`${guest.firstName} ${guest.lastName} (${res.guestCount}) - ${statusLabel}\n${location}`}
                                         >
                                             <div className="flex flex-col font-semibold leading-tight">
-                                                {isStart && (
-                                                    <>
-                                                        <span className="truncate">{guest.firstName} {guest.lastName}</span>
-                                                        <span className="text-[9px] font-bold opacity-90">{statusLabel}</span>
-                                                    </>
+                                                <div className="truncate font-bold">{guest.firstName} {guest.lastName}</div>
+                                                {location && (
+                                                    <div className="truncate text-[9px] opacity-90">{location}</div>
                                                 )}
-                                                {!isStart && (
-                                                    <span className="text-[9px] opacity-75">{statusLabel}</span>
-                                                )}
+                                                <div className="text-[9px] opacity-75">{statusLabel}</div>
                                             </div>
                                         </div>
                                     );
