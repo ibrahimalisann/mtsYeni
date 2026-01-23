@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, LogOut, User, Shield } from 'lucide-react';
+import { LogIn, LogOut, User, Shield, Menu } from 'lucide-react';
 
-const Navbar = () => {
+const Navbar = ({ setIsSidebarOpen, isSidebarOpen }) => {
     const navigate = useNavigate();
     const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
@@ -12,24 +12,29 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <nav className="bg-transparent pt-4 pb-2 z-40">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
-                    {/* Logo/Brand */}
-                    <Link to="/" className="flex items-center gap-2 text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">
-                        🏨 MTS
-                    </Link>
+                    {/* Left Side - Mobile Menu Toggle (Replaces Logo) */}
+                    <div className="flex items-center">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="md:hidden p-2 -ml-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                            <Menu className="w-6 h-6" />
+                        </button>
+                    </div>
 
                     {/* Right Side - Auth */}
                     <div className="flex items-center gap-4">
                         {isAuthenticated ? (
                             <>
                                 {/* User Info */}
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 border border-gray-200/50 rounded-lg backdrop-blur-sm">
                                     <User className="w-4 h-4 text-gray-600" />
-                                    <span className="text-sm font-medium text-gray-900">{user?.username}</span>
+                                    <span className="text-sm font-medium text-gray-900 hidden md:inline">{user?.username}</span>
                                     {isAdmin && (
-                                        <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] md:text-xs font-semibold rounded-full flex items-center gap-1">
                                             <Shield className="w-3 h-3" />
                                             Admin
                                         </span>
@@ -49,10 +54,10 @@ const Navbar = () => {
                                 {/* Logout Button */}
                                 <button
                                     onClick={handleLogout}
-                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors text-sm font-medium"
+                                    className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors text-sm font-medium"
                                 >
                                     <LogOut className="w-4 h-4" />
-                                    Çıkış Yap
+                                    <span className="hidden md:inline">Çıkış Yap</span>
                                 </button>
                             </>
                         ) : (

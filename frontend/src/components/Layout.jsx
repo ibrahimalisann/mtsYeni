@@ -3,10 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { Home, Calendar, Users, UserPlus, Bookmark, Settings, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
-const Layout = ({ children }) => {
+const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
     const location = useLocation();
     const { isAuthenticated, isAdmin } = useAuth();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    // const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Removed internal state
 
     const navigation = [
         { name: 'Dashboard', path: '/dashboard', icon: Home },
@@ -90,20 +90,18 @@ const Layout = ({ children }) => {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden relative">
-                {/* Mobile Header Toggle */}
-                <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center gap-3">
-                    <button
-                        onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-lg"
-                    >
-                        <Menu className="w-6 h-6" />
-                    </button>
-                    <span className="font-semibold text-gray-700">Menü</span>
-                </div>
+                {/* Mobile Header Toggle Removed - usage moved to Navbar */}
 
-                <main className="flex-1 overflow-y-auto w-full">
-                    <div className="py-8 px-4 md:px-6">
+                <main className="flex-1 overflow-y-auto w-full flex flex-col">
+                    <div className="py-8 px-4 md:px-6 flex-1">
                         {children}
+                    </div>
+
+                    {/* Crafted By Footer */}
+                    <div className="py-4 text-center ">
+                        <p className="text-[10px] text-gray-400 font-medium tracking-wide">
+                            &lt;crafted by <a href="https://mavera.site" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">mavera in istanbul</a>&gt;
+                        </p>
                     </div>
                 </main>
             </div>

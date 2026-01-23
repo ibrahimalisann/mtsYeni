@@ -11,13 +11,17 @@ import Guests from './pages/Guests';
 import Presets from './pages/Presets';
 import Settings from './pages/Settings';
 
+import { useState } from 'react';
+
 function App() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-gray-50">
-          <Navbar />
-          <Layout>
+          <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+          <Layout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<NewReservation />} />
