@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Dynamic API URL - uses environment variable if set, otherwise defaults to current hostname on port 5000
-const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Create axios instance with base URL
 const axiosInstance = axios.create({

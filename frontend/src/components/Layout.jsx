@@ -17,9 +17,33 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         { name: 'Ayarlar', path: '/admin/settings', icon: Settings },
     ];
 
-    // Don't show sidebar if not authenticated or not admin
+    // Public page layout (not authenticated or not admin)
     if (!isAuthenticated || !isAdmin) {
-        return <div className="w-full">{children}</div>;
+        return (
+            <div className="min-h-screen flex flex-col bg-gray-50">
+                {/* Minimal Header with Login */}
+                <div className="flex justify-end p-4">
+                    <Link
+                        to="/login"
+                        className="text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                        Admin Girişi →
+                    </Link>
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 w-full">
+                    {children}
+                </div>
+
+                {/* Footer */}
+                <div className="py-4 text-center">
+                    <p className="text-[10px] text-gray-400 font-medium tracking-wide">
+                        &lt;crafted by <a href="https://mavera.site" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">mavera in istanbul</a>&gt;
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     const NavContent = () => (
