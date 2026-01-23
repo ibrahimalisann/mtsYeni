@@ -1,10 +1,12 @@
-import { X, Phone, Mail, Users, CheckCircle, XCircle } from 'lucide-react';
+import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble } from 'lucide-react';
 import { useState } from 'react';
 import axios from '../axiosConfig';
 import RejectReservationModal from './RejectReservationModal';
+import RoomAssignModal from './RoomAssignModal';
 
 const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showRoomModal, setShowRoomModal] = useState(false);
 
     if (!reservation) return null;
 
@@ -121,6 +123,42 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                         </div>
                     </div>
 
+                    {/* Assigned Rooms */}
+                    <div>
+                        <h4 className="flex items-center font-semibold text-gray-700 mb-3 gap-2">
+                            <BedDouble className="w-5 h-5 text-indigo-500" />
+                            Atanan Odalar
+                        </h4>
+                        {reservation.roomAssignments && reservation.roomAssignments.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {reservation.roomAssignments.map((assignment, idx) => (
+                                    <span key={idx} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                                        {assignment.roomName} ({assignment.guestCount} kişi)
+                                    </span>
+                                ))}
+                            </div>
+                        ) : reservation.assignedRooms && reservation.assignedRooms.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {reservation.assignedRooms.map((room, idx) => (
+                                    <span key={idx} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                                        {room}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500 italic">Henüz oda atanmamış.</p>
+                        )}
+                        {(reservation.status === 'confirmed' || reservation.status === 'active') && (
+                            <button
+                                onClick={() => setShowRoomModal(true)}
+                                className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                            >
+                                <BedDouble className="w-4 h-4" />
+                                {(reservation.roomAssignments?.length > 0 || reservation.assignedRooms?.length > 0) ? 'Odaları Değiştir' : 'Oda Ata'}
+                            </button>
+                        )}
+                    </div>
+
                     {/* Registrar Info */}
                     <div>
                         <h4 className="flex items-center font-semibold text-gray-700 mb-3 gap-2">
@@ -186,6 +224,15 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                 <RejectReservationModal
                     reservation={reservation}
                     onClose={() => setShowRejectModal(false)}
+                    onUpdate={onUpdate}
+                />
+            )}
+
+            {/* Room Assign Modal */}
+            {showRoomModal && (
+                <RoomAssignModal
+                    reservation={reservation}
+                    onClose={() => setShowRoomModal(false)}
                     onUpdate={onUpdate}
                 />
             )}

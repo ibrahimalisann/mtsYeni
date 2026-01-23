@@ -2,6 +2,79 @@
 
 All notable changes to the MTS (Misafir Takip Sistemi) project will be documented in this file.
 
+## [2026-01-24 PM] - Activity Logs, Room Management & Dashboard Enhancements
+
+### Added
+
+#### 📊 Dashboard Improvements
+- **New Status Cards**:
+  - 🕒 **Onay Bekleyen (Yellow)**: Shows count of `pending` reservations awaiting approval. Expandable list.
+  - ⚠️ **Atama Bekleyen (Orange)**: Shows confirmed guests who need room assignments. Includes direct "Oda Ata" action.
+- **Enhanced Arrivals/Departures**:
+  - Cards now expand to show detailed guest list dropdowns.
+  - Shows guest names, counts, city/country, and check-in/out times.
+- **Upcoming Arrivals Tabs**:
+  - Split into "Next 7 Days" and "7-30 Days" tabs.
+  - Using reusable `GuestCard` component.
+
+#### 📝 Activity Logging System
+- **Comprehensive Logging**:
+  - Tracks all critical actions: Reservation Create/Update/Delete, Room Assign, Status Changes.
+  - Logs user info, IP address, timestamp, and detailed description.
+- **Audit Log Interface** (`/admin/logs`):
+  - Dedicated page for viewing system logs.
+  - **Filters**: By Action Type, Entity, Date Range, and Search text.
+  - **Pagination**: 30 logs per page.
+  - **Color Coding**: Green (Create/Confirm), Red (Delete/Cancel), Blue (Update), Orange (Warning).
+- **Backend Infrastructure**:
+  - `ActivityLog` Mongoose model.
+  - `logger` utility with helper functions.
+  - `/api/logs` endpoints for fetching and filtering logs.
+
+#### 🛏️ Room Management & Assignments
+- **Granular Room Assignments**:
+  - New `roomAssignments` structure tracking guest count per room (e.g., "Ferah: 2 guests").
+  - Legacy support for old string-based assignments.
+- **RoomAssignModal Improvements**:
+  - Real-time occupancy checking based on reservation dates.
+  - **Visual Occupancy Bar**: Shows room fullness with color codes (Green/Yellow/Red).
+  - +/- buttons for distributing guests to beds.
+  - Validation: Prevents over-capacity assignments.
+
+### Changed
+
+#### 👥 Guests Page Enhancements
+- **Improved Filtering**:
+  - "Konaklayanlar" tab now includes **ALL** guests staying today (Active status OR Confirmed + Date Range Match).
+  - Fixed issue where today's check-ins didn't appear until status was manually changed to Active.
+- **Archive Tab**:
+  - New tab for past reservations.
+  - Filters: Last Month, Last Year, All Time.
+- **UI Enhancements**:
+  - Distinct orange border for guests needing room assignments.
+  - Cards sorted by nearest check-in date.
+
+### Fixed
+- **Occupancy Calculation**: Fixed backend bug where new `roomAssignments` format wasn't being correctly counted in occupancy checks.
+- **Dashboard Layout**: Fixed unclosed HTML tags causing layout issues in stats grid.
+
+### Technical Details
+
+#### Modified Files
+- `backend/routes/dashboard.js` - Added pending/unassigned queries.
+- `backend/models/Reservation.js` - Added `roomAssignments` field.
+- `backend/routes/rooms.js` - Updated occupancy logic.
+- `frontend/src/pages/Dashboard.jsx` - New cards, expandable lists.
+- `frontend/src/pages/Guests.jsx` - Filter logic updates.
+- `frontend/src/components/RoomAssignModal.jsx` - Bed-level assignment UI.
+- `backend/models/ActivityLog.js` (New)
+- `backend/utils/logger.js` (New)
+- `backend/routes/logs.js` (New)
+- `frontend/src/pages/Logs.jsx` (New)
+
+---
+
+
 ## [2026-01-24] - UI/UX Improvements & Infrastructure Fixes
 
 ### Added

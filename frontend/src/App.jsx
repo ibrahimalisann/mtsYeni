@@ -8,6 +8,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReservationList from './pages/ReservationList';
 import Guests from './pages/Guests';
+import Rooms from './pages/Rooms';
+import Logs from './pages/Logs';
 
 import Settings from './pages/Settings';
 
@@ -56,6 +58,22 @@ function App() {
                 element={
                   <ProtectedRoute adminOnly>
                     <Guests />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/rooms"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Rooms />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/logs"
+                element={
+                  <ProtectedRoute adminOnly>
+                    <Logs />
                   </ProtectedRoute>
                 }
               />

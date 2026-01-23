@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Calendar, Users, UserPlus, Settings, Menu, X } from 'lucide-react';
+import { Home, Calendar, Users, UserPlus, Settings, Menu, X, BedDouble, FileText } from 'lucide-react';
 import Navbar from './Navbar';
 import { useState } from 'react';
 
@@ -12,8 +12,10 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
     const navigation = [
         { name: 'Dashboard', path: '/dashboard', icon: Home },
         { name: 'Rezervasyonlar', path: '/reservations', icon: Calendar },
+        { name: 'Odalar', path: '/rooms', icon: BedDouble },
         { name: 'Misafirler', path: '/guests', icon: Users },
         { name: 'Yeni Rezervasyon', path: '/reservations/new', icon: UserPlus },
+        { name: 'Loglar', path: '/admin/logs', icon: FileText },
         { name: 'Ayarlar', path: '/admin/settings', icon: Settings },
     ];
 
