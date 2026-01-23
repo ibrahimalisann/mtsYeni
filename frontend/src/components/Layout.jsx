@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, Calendar, Users, UserPlus, Bookmark, Settings, Menu, X } from 'lucide-react';
+import { Home, Calendar, Users, UserPlus, Settings, Menu, X } from 'lucide-react';
+import Navbar from './Navbar';
 import { useState } from 'react';
 
 const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
@@ -13,7 +14,6 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         { name: 'Rezervasyonlar', path: '/reservations', icon: Calendar },
         { name: 'Misafirler', path: '/guests', icon: Users },
         { name: 'Yeni Rezervasyon', path: '/reservations/new', icon: UserPlus },
-        { name: 'Ön Tanımlılar', path: '/admin/presets', icon: Bookmark },
         { name: 'Ayarlar', path: '/admin/settings', icon: Settings },
     ];
 
@@ -57,7 +57,7 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-gray-200 mt-auto">
                 <p className="text-xs text-gray-500 text-center">
                     Misafir Takip Sistemi
                 </p>
@@ -66,9 +66,9 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
     );
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-gray-50">
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
             {/* Desktop Sidebar */}
-            <div className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col">
+            <div className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col h-full">
                 <NavContent />
             </div>
 
@@ -77,7 +77,7 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
                 <div className="fixed inset-0 z-50 md:hidden flex">
                     {/* Backdrop */}
                     <div
-                        className="fixed inset-0 bg-black bg-opacity-50"
+                        className="fixed inset-0 bg-black/20 backdrop-blur-sm transition-opacity"
                         onClick={() => setIsSidebarOpen(false)}
                     />
 
@@ -89,16 +89,16 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
             )}
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col overflow-hidden relative">
-                {/* Mobile Header Toggle Removed - usage moved to Navbar */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
 
-                <main className="flex-1 overflow-y-auto w-full flex flex-col">
+                <main className="flex-1 overflow-y-auto w-full flex flex-col relative z-0">
                     <div className="py-8 px-4 md:px-6 flex-1">
                         {children}
                     </div>
 
                     {/* Crafted By Footer */}
-                    <div className="py-4 text-center ">
+                    <div className="py-4 text-center mt-auto">
                         <p className="text-[10px] text-gray-400 font-medium tracking-wide">
                             &lt;crafted by <a href="https://mavera.site" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">mavera in istanbul</a>&gt;
                         </p>

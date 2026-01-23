@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import Navbar from './components/Navbar';
+
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import NewReservation from './pages/NewReservation';
@@ -8,7 +8,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ReservationList from './pages/ReservationList';
 import Guests from './pages/Guests';
-import Presets from './pages/Presets';
+
 import Settings from './pages/Settings';
 
 import { useState } from 'react';
@@ -20,7 +20,6 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-gray-50">
-          <Navbar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
           <Layout isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen}>
             <Routes>
               {/* Public Routes */}
@@ -60,14 +59,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/admin/presets"
-                element={
-                  <ProtectedRoute adminOnly>
-                    <Presets />
-                  </ProtectedRoute>
-                }
-              />
+
               <Route
                 path="/admin/settings"
                 element={
