@@ -22,13 +22,15 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50">
                 {/* Minimal Header with Login */}
-                <div className="flex justify-end p-4">
-                    <Link
-                        to="/login"
-                        className="text-xs text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                        Admin Girişi →
-                    </Link>
+                <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+                    <div className="flex justify-end">
+                        <Link
+                            to="/login"
+                            className="text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                            Admin Girişi →
+                        </Link>
+                    </div>
                 </div>
 
                 {/* Main Content */}

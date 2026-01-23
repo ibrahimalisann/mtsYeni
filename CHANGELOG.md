@@ -2,6 +2,54 @@
 
 All notable changes to the MTS (Misafir Takip Sistemi) project will be documented in this file.
 
+## [2026-01-24] - UI/UX Improvements & Infrastructure Fixes
+
+### Added
+
+#### 🎨 Favicon & Branding
+- **Custom Favicon**: New MTS branded favicon with blue rounded-square background and white arrow icon
+  - Matches login page logo design
+  - Updated `index.html` favicon reference from Vite default to custom `favicon.png`
+  - Page title changed from "frontend" to "Misafir Takip Sistemi"
+
+#### 👤 Admin User Setup
+- **Default Admin User**: Added local development admin account
+  - Username: `admin`
+  - Password: `admin123`
+  - Role: `admin`
+
+### Changed
+
+#### 🔧 Infrastructure
+- **Backend Port Changed**: 5000 → 5001
+  - macOS Monterey+ uses port 5000 for ControlCenter service
+  - Updated `backend/.env` to use PORT=5001
+  - Updated `frontend/vite.config.js` proxy target to localhost:5001
+  - Ensures reliable local development on macOS
+
+#### 🎯 Admin Login Button Positioning
+- **Improved Layout**: "Admin Girişi" link repositioned
+  - Changed from fixed right edge (`justify-end p-4`) 
+  - Now aligned with form container (`max-w-4xl mx-auto`)
+  - Same padding as content area (`px-4 sm:px-6 lg:px-8`)
+  - Visually aligned above "Yeni Rezervasyon" heading
+
+### Fixed
+- **Preset Links Not Showing**: Fixed by correcting backend port configuration
+  - Presets API was unreachable due to port 5000 conflict
+  - Now correctly fetching from port 5001
+
+### Technical Details
+
+#### Modified Files
+- `backend/.env` - Port changed to 5001
+- `frontend/vite.config.js` - Proxy target updated to 5001
+- `frontend/index.html` - Favicon and title updated
+- `frontend/src/components/Layout.jsx` - Admin login button positioning
+- `frontend/public/favicon.png` - New custom favicon (added)
+
+---
+
 ## [2026-01-23 PM] - Form Enhancements & Preset System
 
 ### Added
