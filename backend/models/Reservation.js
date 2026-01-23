@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 
 const reservationSchema = new mongoose.Schema({
     guest: { type: mongoose.Schema.Types.ObjectId, ref: 'Guest', required: true },
-    assignedRooms: [{ type: String }], // Array of room names e.g., ['Ferah', 'Kısıklı']
+    assignedRooms: [{ type: String }], // Array of room names e.g., ['Ferah', 'Kısıklı'] (legacy)
+    roomAssignments: [{
+        roomName: { type: String, required: true },
+        guestCount: { type: Number, required: true, min: 1 }
+    }], // New: Guest count per room, e.g., [{roomName: 'Ferah', guestCount: 2}]
     guestCount: { type: Number, required: true, default: 1 }, // Added guest count
     checkInDate: { type: Date, required: true },
     checkOutDate: { type: Date, required: true },
