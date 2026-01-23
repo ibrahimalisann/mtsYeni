@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+// Dynamic API URL - uses current hostname instead of localhost
+const API_BASE_URL = `http://${window.location.hostname}:5000/api`;
+
+// Create axios instance with base URL
+const axiosInstance = axios.create({
+    baseURL: API_BASE_URL
+});
+
 // Add request interceptor to include JWT token
-axios.interceptors.request.use(
+axiosInstance.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
         if (token) {
@@ -15,7 +23,7 @@ axios.interceptors.request.use(
 );
 
 // Add response interceptor to handle 401 errors
-axios.interceptors.response.use(
+axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
@@ -29,4 +37,4 @@ axios.interceptors.response.use(
     }
 );
 
-export default axios;
+export default axiosInstance;

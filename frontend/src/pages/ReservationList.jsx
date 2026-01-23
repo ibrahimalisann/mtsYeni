@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../axiosConfig';
 import { Search, Filter, Eye, User, Calendar, BedDouble, List, Edit2, Trash2 } from 'lucide-react';
 import ReservationDetailModal from '../components/ReservationDetailModal';
 import EditReservationModal from '../components/EditReservationModal';
@@ -18,7 +18,7 @@ const ReservationList = () => {
 
     const fetchReservations = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/reservations');
+            const res = await axios.get('/reservations');
             setReservations(res.data);
         } catch (error) {
             console.error('Error fetching reservations:', error);
@@ -37,7 +37,7 @@ const ReservationList = () => {
         }
 
         try {
-            await axios.delete(`http://localhost:5000/api/reservations/${reservationId}`);
+            await axios.delete(`/reservations/${reservationId}`);
             setReservations(prev => prev.filter(r => r._id !== reservationId));
             alert('Rezervasyon başarıyla silindi!');
         } catch (error) {

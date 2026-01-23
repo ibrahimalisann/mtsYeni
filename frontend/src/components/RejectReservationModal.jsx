@@ -1,6 +1,6 @@
 import { X, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
-import axios from 'axios';
+import axios from '../axiosConfig';
 
 const RejectReservationModal = ({ reservation, onClose, onUpdate }) => {
     const [reason, setReason] = useState('');
@@ -15,7 +15,7 @@ const RejectReservationModal = ({ reservation, onClose, onUpdate }) => {
 
         setLoading(true);
         try {
-            const res = await axios.put(`http://localhost:5000/api/reservations/${reservation._id}`, {
+            const res = await axios.put(`/reservations/${reservation._id}`, {
                 status: 'cancelled',
                 rejectionReason: reason
             });

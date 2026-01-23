@@ -1,6 +1,6 @@
 import { X, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../axiosConfig';
 
 const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
     if (!reservation) return null;
@@ -36,7 +36,7 @@ const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
                 additionalGuests: formData.additionalGuests
             };
 
-            const res = await axios.put(`http://localhost:5000/api/reservations/${reservation._id}`, updatePayload);
+            const res = await axios.put(`/reservations/${reservation._id}`, updatePayload);
             onUpdate(res.data);
             alert('Rezervasyon başarıyla güncellendi!');
             onClose();

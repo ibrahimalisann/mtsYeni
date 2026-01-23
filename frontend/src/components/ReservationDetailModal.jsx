@@ -1,6 +1,6 @@
 import { X, Phone, Mail, Users, CheckCircle, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import axios from 'axios';
+import axios from '../axiosConfig';
 import RejectReservationModal from './RejectReservationModal';
 
 const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
@@ -14,7 +14,7 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
 
     const handleConfirm = async () => {
         try {
-            const res = await axios.put(`http://localhost:5000/api/reservations/${reservation._id}`, {
+            const res = await axios.put(`/reservations/${reservation._id}`, {
                 status: 'confirmed'
             });
             onUpdate(res.data);

@@ -33,7 +33,8 @@ app.get('/', (req, res) => {
     res.send('Guest Tracking System API is running');
 });
 
-// Start Server
-app.listen(PORT, () => {
+// Start Server - Listen on all network interfaces for external access
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`Network access: http://0.0.0.0:${PORT}`);
 });

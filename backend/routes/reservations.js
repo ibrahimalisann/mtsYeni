@@ -63,7 +63,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST new reservation
+// POST new reservation (public - no auth required)
 router.post('/', async (req, res) => {
     // Expects guestId or guest object to create new?
     const { guestId, guestCount, checkInDate, checkOutDate, notes, additionalGuests, assignedRooms, registrar } = req.body;

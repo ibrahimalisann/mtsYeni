@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios from '../axiosConfig';
 import { useNavigate } from 'react-router-dom';
 import { Save, User, Users } from 'lucide-react';
 
@@ -92,7 +92,7 @@ const NewReservation = () => {
         setLoading(true);
         try {
             // 1. Create Guest (or Group Leader)
-            const guestRes = await axios.post('http://localhost:5000/api/guests', {
+            const guestRes = await axios.post('/guests', {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 phone: formData.phone,
@@ -119,7 +119,7 @@ const NewReservation = () => {
                 reservationPayload.additionalGuests = validGuests;
             }
 
-            await axios.post('http://localhost:5000/api/reservations', reservationPayload);
+            await axios.post('/reservations', reservationPayload);
 
             alert('Rezervasyon başarıyla oluşturuldu!');
             navigate('/');

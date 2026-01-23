@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../axiosConfig';
 import { Calendar, User, Clock } from 'lucide-react';
 
 const Guests = () => {
@@ -10,7 +10,7 @@ const Guests = () => {
     useEffect(() => {
         const fetchReservations = async () => {
             try {
-                const response = await axios.get('http://localhost:5000/api/reservations');
+                const response = await axios.get('/reservations');
                 setReservations(response.data);
             } catch (error) {
                 console.error("Fetch reservations failed", error);
