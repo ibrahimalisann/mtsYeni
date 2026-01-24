@@ -224,7 +224,11 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                 <RejectReservationModal
                     reservation={reservation}
                     onClose={() => setShowRejectModal(false)}
-                    onUpdate={onUpdate}
+                    onUpdate={(updatedData) => {
+                        onUpdate(updatedData);
+                        setShowRejectModal(false);
+                        onClose(); // Close the parent detail modal too
+                    }}
                 />
             )}
 

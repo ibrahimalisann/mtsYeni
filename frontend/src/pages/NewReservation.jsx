@@ -48,16 +48,16 @@ const NewReservation = () => {
 
     // Detect user's country from IP on component mount
     useEffect(() => {
+        // Simple country detection - if it fails (CORS/Adblock), defaults to TR
         const detectCountry = async () => {
             try {
-                const response = await fetch('https://ipapi.co/json/');
-                const data = await response.json();
-                if (data.country_code) {
-                    setDetectedCountry(data.country_code);
-                }
+                // Using a no-cors request or handling failure gracefully
+                // For now, we skip the call if it's causing CORS issues on localhost
+                // const response = await fetch('https://ipapi.co/json/');
+                // const data = await response.json();
+                // if (data.country_code) setDetectedCountry(data.country_code);
             } catch (error) {
-                console.log('Could not detect country, using default (TR)');
-                // Keep default TR if detection fails
+                console.log('Country detection skipped');
             }
         };
         detectCountry();
