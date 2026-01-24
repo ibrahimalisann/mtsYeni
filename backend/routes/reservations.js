@@ -3,6 +3,8 @@ const router = express.Router();
 const Reservation = require('../models/Reservation');
 const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const { logActivity, getClientIp, formatDateTR } = require('../utils/logger');
+const { sendWhatsAppMessage } = require('../utils/whatsapp');
+const { sendEmail } = require('../utils/email');
 
 // GET all reservations (protected - requires login)
 router.get('/', verifyToken, async (req, res) => {
@@ -155,11 +157,134 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
             switch (status) {
                 case 'confirmed':
                     action = 'reservation_confirmed';
-                    description = `Rezervasyon onaylandı: ${guestName} (${previousReservation.guestCount} kişi) - ${formatDateTR(previousReservation.checkInDate)} / ${formatDateTR(previousReservation.checkOutDate)}`;
+                    const registrarName = previousReservation.registrar?.firstName ? `${previousReservation.registrar.firstName} ${previousReservation.registrar.lastName}` : 'Yetkili';
+                    const notesPart = previousReservation.notes ? `
+notunuz: "${previousReservation.notes}"` : '';
+
+                    // Template logic for groups vs individuals
+                    const isGroup = previousReservation.guestCount > 1;
+                    const groupContext = isGroup ? `grup başkanı *${guestName}* olan` : `*${guestName}* adına yapılan`;
+
+                    const confirmMsg = `Muhterem *${registrarName}* ${formatDateTR(previousReservation.checkInDate)} - ${formatDateTR(previousReservation.checkOutDate)} tarihleri arasında ${groupContext} 
+toplam kişi sayısı: ${previousReservation.guestCount}${notesPart}
+rezervasyon talebiniz *onaylanmıştır*.
+hayırlı vakitler dileriz.`;
+                    description = `Rezervasyon onaylandı: ${guestName} (${previousReservation.guestCount} kişi)`;
+
+                    // Send WhatsApp Notification to Registrar
+                    if (previousReservation.registrar?.phone) {
+                        try {
+                            const sent = await sendWhatsAppMessage(previousReservation.registrar.phone, confirmMsg);
+                            if (sent) description += ' (WhatsApp: Yetkiliye Gönderildi)';
+                            else description += ' (WhatsApp: Yetkiliye Başarısız)';
+                        } catch (waError) {
+                            console.error('WhatsApp notification error:', waError);
+                            description += ' (WhatsApp: Yetkili Hatası)';
+                        }
+                    }
+
+                    // Send Email Notification to Registrar
+                    if (previousReservation.registrar?.email) {
+                        try {
+                            const emailSubject = `Konaklama Rezervasyon Onayı - ${guestName}`;
+                            // Remove bold markers for email text
+                            const emailSent = await sendEmail(previousReservation.registrar.email, emailSubject, confirmMsg.replace(/\*/g, ''));
+                            if (emailSent) description += ' (Email: Gönderildi)';
+                            else description += ' (Email: Başarısız - Bilinmeyen)';
+                        } catch (emailError) {
+                            console.error('Email notification error:', emailError);
+                            description += ` (Email Hata: ${emailError.message})`;
+                        }
+                    }
+
+                    // Send WhatsApp Notification to Group Leader (if phone exists and different from registrar)
+                    if (previousReservation.guest?.phone && previousReservation.guest.phone !== previousReservation.registrar?.phone) {
+                        const leaderName = `${previousReservation.guest.firstName} ${previousReservation.guest.lastName}`;
+                        // Personalize message for leader
+                        const leaderContext = isGroup ? `grup başkanı *${leaderName}* olan` : `*${leaderName}* adına yapılan`;
+
+                        const leaderMsg = `Muhterem *${leaderName}* ${formatDateTR(previousReservation.checkInDate)} - ${formatDateTR(previousReservation.checkOutDate)} tarihleri arasında ${leaderContext} 
+toplam kişi sayısı: ${previousReservation.guestCount}${notesPart}
+rezervasyon talebiniz *onaylanmıştır*.
+hayırlı vakitler dileriz.`;
+
+                        // Send with 5 seconds delay (non-blocking)
+                        setTimeout(async () => {
+                            try {
+                                await sendWhatsAppMessage(previousReservation.guest.phone, leaderMsg);
+                                console.log(`Delayed WhatsApp sent to Group Leader: ${leaderName}`);
+                            } catch (err) {
+                                console.error(`Failed to send delayed WhatsApp to Group Leader: ${leaderName}`, err);
+                            }
+                        }, 5000);
+
+                        description += ' (Grup Lideri: Kuyruklandı)';
+                    }
+                    else if (previousReservation.guest?.phone) {
+                        // Case: Registrar and Guest have same phone, message already sent above
+                        // description += ' (Grup Lideri: Yetkili ile aynı)';
+                    }
                     break;
                 case 'cancelled':
                     action = 'reservation_cancelled';
                     description = `Rezervasyon iptal edildi: ${guestName}${rejectionReason ? ` - Sebep: ${rejectionReason}` : ''}`;
+
+                    // Send Rejection Message
+                    if (previousReservation.registrar?.phone) {
+                        const registrarName = previousReservation.registrar?.firstName ? `${previousReservation.registrar.firstName} ${previousReservation.registrar.lastName}` : 'Yetkili';
+                        const isGroup = previousReservation.guestCount > 1;
+                        const groupContext = isGroup ? `grup başkanı *${guestName}* olan` : `*${guestName}* adına yapılan`;
+
+                        const rejectMsg = `Muhterem *${registrarName}* ${formatDateTR(previousReservation.checkInDate)} - ${formatDateTR(previousReservation.checkOutDate)} tarihleri arasında ${groupContext} 
+toplam kişi sayısı: ${previousReservation.guestCount}
+rezervasyon talebiniz maalesef *onaylanamamıştır*.
+${rejectionReason ? `Sebep: ${rejectionReason}` : ''}
+hayırlı vakitler dileriz.`;
+
+                        try {
+                            const sent = await sendWhatsAppMessage(previousReservation.registrar.phone, rejectMsg);
+                            if (sent) description += ' (WhatsApp: Yetkiliye Gönderildi)';
+                            else description += ' (WhatsApp: Yetkiliye Başarısız)';
+                        } catch (waError) {
+                            console.error('WhatsApp notification error:', waError);
+                            description += ' (WhatsApp: Yetkili Hatası)';
+                        }
+
+                        // Send Email Logic for Rejection
+                        if (previousReservation.registrar?.email) {
+                            try {
+                                const emailSubject = `Konaklama Rezervasyon Durumu - ${guestName}`;
+                                const emailSent = await sendEmail(previousReservation.registrar.email, emailSubject, rejectMsg.replace(/\*/g, ''));
+                                if (emailSent) description += ' (Email: Gönderildi)';
+                                else description += ' (Email: Başarısız - Bilinmeyen)';
+                            } catch (emailError) {
+                                console.error('Email notification error:', emailError);
+                                description += ` (Email Hata: ${emailError.message})`;
+                            }
+                        }
+                    }
+
+                    // Send Rejection Message to Group Leader (if phone exists and different from registrar)
+                    if (previousReservation.guest?.phone && previousReservation.guest.phone !== previousReservation.registrar?.phone) {
+                        const leaderName = `${previousReservation.guest.firstName} ${previousReservation.guest.lastName}`;
+                        const leaderRejectMsg = `Muhterem *${leaderName}* ${formatDateTR(previousReservation.checkInDate)} - ${formatDateTR(previousReservation.checkOutDate)} tarihleri arasında grup başkanı *${leaderName}* olan 
+toplam kişi sayısı: ${previousReservation.guestCount}
+rezervasyon talebiniz maalesef *onaylanamamıştır*.
+${rejectionReason ? `Sebep: ${rejectionReason}` : ''}
+hayırlı vakitler dileriz.`;
+
+                        // Send with 5 seconds delay (non-blocking)
+                        setTimeout(async () => {
+                            try {
+                                await sendWhatsAppMessage(previousReservation.guest.phone, leaderRejectMsg);
+                                console.log(`Delayed Rejection WhatsApp sent to Group Leader: ${leaderName}`);
+                            } catch (err) {
+                                console.error(`Failed to send delayed rejection WhatsApp to Group Leader: ${leaderName}`, err);
+                            }
+                        }, 5000);
+
+                        description += ' (Grup Lideri: Kuyruklandı)';
+                    }
                     break;
                 case 'active':
                     action = 'reservation_activated';
