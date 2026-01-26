@@ -33,3 +33,7 @@ coverage/
 # Misc
 *.bak
 *.tmp
+
+# Data files
+backend/data/presets.json
+backend/data/settings.json
