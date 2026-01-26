@@ -9,7 +9,24 @@ const { sendEmail } = require('../utils/email');
 // GET all reservations (protected - requires login)
 router.get('/', verifyToken, async (req, res) => {
     try {
-        const reservations = await Reservation.find().populate('guest');
+        const { isArchived } = req.query;
+        const filter = {};
+
+        // Filter by archive status if provided
+        if (isArchived !== undefined) {
+            if (isArchived === 'true') {
+                // Show only archived reservations
+                filter.isArchived = true;
+            } else {
+                // Show active reservations (isArchived is false or doesn't exist)
+                filter.$or = [
+                    { isArchived: false },
+                    { isArchived: { $exists: false } }
+                ];
+            }
+        }
+
+        const reservations = await Reservation.find(filter).populate('guest');
         res.json(reservations);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -330,6 +347,86 @@ hayırlı vakitler dileriz.`;
         res.json(updatedReservation);
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+
+// PATCH archive reservation (protected - requires login)
+router.patch('/:id/archive', verifyToken, async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id).populate('guest');
+        if (!reservation) {
+            return res.status(404).json({ message: 'Rezervasyon bulunamadı' });
+        }
+
+        const guestName = reservation.guest
+            ? `${reservation.guest.firstName} ${reservation.guest.lastName}`
+            : 'Bilinmeyen Misafir';
+
+        reservation.isArchived = true;
+        reservation.archivedAt = new Date();
+        await reservation.save();
+
+        await logActivity({
+            user: req.user,
+            action: 'reservation_archived',
+            description: `Rezervasyon arşivlendi: ${guestName} (${reservation.guestCount} kişi) - ${formatDateTR(reservation.checkInDate)} / ${formatDateTR(reservation.checkOutDate)}`,
+            entity: {
+                type: 'reservation',
+                id: reservation._id,
+                name: guestName
+            },
+            details: {
+                guestCount: reservation.guestCount,
+                checkInDate: reservation.checkInDate,
+                checkOutDate: reservation.checkOutDate,
+                status: reservation.status
+            },
+            ipAddress: getClientIp(req)
+        });
+
+        res.json({ message: 'Rezervasyon başarıyla arşivlendi', reservation });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// PATCH restore reservation (protected - requires login)
+router.patch('/:id/restore', verifyToken, async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id).populate('guest');
+        if (!reservation) {
+            return res.status(404).json({ message: 'Rezervasyon bulunamadı' });
+        }
+
+        const guestName = reservation.guest
+            ? `${reservation.guest.firstName} ${reservation.guest.lastName}`
+            : 'Bilinmeyen Misafir';
+
+        reservation.isArchived = false;
+        reservation.archivedAt = null;
+        await reservation.save();
+
+        await logActivity({
+            user: req.user,
+            action: 'reservation_restored',
+            description: `Rezervasyon geri yüklendi: ${guestName} (${reservation.guestCount} kişi) - ${formatDateTR(reservation.checkInDate)} / ${formatDateTR(reservation.checkOutDate)}`,
+            entity: {
+                type: 'reservation',
+                id: reservation._id,
+                name: guestName
+            },
+            details: {
+                guestCount: reservation.guestCount,
+                checkInDate: reservation.checkInDate,
+                checkOutDate: reservation.checkOutDate,
+                status: reservation.status
+            },
+            ipAddress: getClientIp(req)
+        });
+
+        res.json({ message: 'Rezervasyon başarıyla geri yüklendi', reservation });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 
