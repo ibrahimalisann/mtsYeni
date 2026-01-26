@@ -31,6 +31,8 @@ const reservationSchema = new mongoose.Schema({
     },
     notes: { type: String },
     rejectionReason: { type: String }, // Reason for rejection/cancellation
+    isArchived: { type: Boolean, default: false }, // Archive status
+    archivedAt: { type: Date }, // Archive timestamp
     createdAt: { type: Date, default: Date.now }
 });
 
