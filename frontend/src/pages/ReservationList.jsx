@@ -1,24 +1,28 @@
 import { useState, useEffect } from 'react';
 import axios from '../axiosConfig';
-import { Search, Filter, Eye, User, Calendar, BedDouble, List, Edit2, Trash2 } from 'lucide-react';
+import { Search, Filter, Eye, User, Calendar, BedDouble, List, Edit2, Trash2, Archive, ArchiveRestore } from 'lucide-react';
 import ReservationDetailModal from '../components/ReservationDetailModal';
 import EditReservationModal from '../components/EditReservationModal';
 import CalendarView from '../components/CalendarView';
+import ArchiveConfirmModal from '../components/ArchiveConfirmModal';
 
 const ReservationList = () => {
     const [reservations, setReservations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [editingReservation, setEditingReservation] = useState(null);
+    const [archivingReservation, setArchivingReservation] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
+    const [activeTab, setActiveTab] = useState('active'); // 'active' or 'archived'
 
     useEffect(() => {
         fetchReservations();
-    }, []);
+    }, [activeTab]);
 
     const fetchReservations = async () => {
         try {
-            const res = await axios.get('/reservations');
+            const isArchived = activeTab === 'archived';
+            const res = await axios.get(`/reservations?isArchived=${isArchived}`);
             setReservations(res.data);
         } catch (error) {
             console.error('Error fetching reservations:', error);
@@ -43,6 +47,31 @@ const ReservationList = () => {
         } catch (error) {
             console.error('Error deleting reservation:', error);
             alert('Silme işlemi sırasında bir hata oluştu.');
+        }
+    };
+
+    const handleArchive = async () => {
+        if (!archivingReservation) return;
+
+        try {
+            await axios.patch(`/reservations/${archivingReservation._id}/archive`);
+            setReservations(prev => prev.filter(r => r._id !== archivingReservation._id));
+            setArchivingReservation(null);
+            alert('Rezervasyon başarıyla arşivlendi!');
+        } catch (error) {
+            console.error('Error archiving reservation:', error);
+            alert('Arşivleme işlemi sırasında bir hata oluştu.');
+        }
+    };
+
+    const handleRestore = async (reservationId) => {
+        try {
+            await axios.patch(`/reservations/${reservationId}/restore`);
+            setReservations(prev => prev.filter(r => r._id !== reservationId));
+            alert('Rezervasyon başarıyla geri yüklendi!');
+        } catch (error) {
+            console.error('Error restoring reservation:', error);
+            alert('Geri yükleme işlemi sırasında bir hata oluştu.');
         }
     };
 
@@ -73,6 +102,24 @@ const ReservationList = () => {
                             Takvim
                         </button>
                     </div>
+                </div>
+
+                {/* Archive Tabs */}
+                <div className="flex bg-gray-100 p-1 rounded-xl mb-4">
+                    <button
+                        onClick={() => setActiveTab('active')}
+                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'active' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Aktif Rezervasyonlar
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('archived')}
+                        className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'archived' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Arşivlendi
+                    </button>
                 </div>
             </div>
 
@@ -144,6 +191,23 @@ const ReservationList = () => {
                                                 >
                                                     <Edit2 className="w-5 h-5" />
                                                 </button>
+                                                {activeTab === 'active' ? (
+                                                    <button
+                                                        onClick={() => setArchivingReservation(res)}
+                                                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors border border-transparent hover:border-amber-100"
+                                                        title="Arşive Gönder"
+                                                    >
+                                                        <Archive className="w-5 h-5" />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleRestore(res._id)}
+                                                        className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100"
+                                                        title="Geri Yükle"
+                                                    >
+                                                        <ArchiveRestore className="w-5 h-5" />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleDelete(res._id)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
@@ -187,6 +251,17 @@ const ReservationList = () => {
                         reservation={editingReservation}
                         onClose={() => setEditingReservation(null)}
                         onUpdate={handleUpdate}
+                    />
+                )
+            }
+
+            {/* Archive Confirm Modal */}
+            {
+                archivingReservation && (
+                    <ArchiveConfirmModal
+                        reservation={archivingReservation}
+                        onConfirm={handleArchive}
+                        onClose={() => setArchivingReservation(null)}
                     />
                 )
             }
