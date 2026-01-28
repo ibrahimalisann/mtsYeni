@@ -129,7 +129,7 @@ router.post('/', async (req, res) => {
         // Send WhatsApp notifications
         const registrarName = registrar?.firstName ? `${registrar.firstName} ${registrar.lastName}` : 'Muhterem';
         const confirmationMsg = `Muhterem *${registrarName}* talebiniz oluşturuldu.
-*Bu form gönderildikten sonra onaylanması icap etmektedir.*
+*Bu form gönderildikten sonra OFİS tarafından onaylanması icap etmektedir.*
 Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
 
         let whatsappStatus = '';
@@ -150,7 +150,7 @@ Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
         if (populatedRes.guest?.phone && populatedRes.guest.phone !== registrar?.phone) {
             const leaderName = `${populatedRes.guest.firstName} ${populatedRes.guest.lastName}`;
             const leaderMsg = `Muhterem *${leaderName}* talebiniz oluşturuldu.
-*Bu form gönderildikten sonra onaylanması icap etmektedir.*
+*Bu form gönderildikten sonra OFİS tarafından onaylanması icap etmektedir.*
 Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
 
             // Send with 5 seconds delay (non-blocking)
