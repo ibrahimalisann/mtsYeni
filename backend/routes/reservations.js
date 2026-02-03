@@ -1,10 +1,45 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Reservation = require('../models/Reservation');
 const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const { logActivity, getClientIp, formatDateTR } = require('../utils/logger');
 const { sendWhatsAppMessage } = require('../utils/whatsapp');
 const { sendEmail } = require('../utils/email');
+
+// Configure Multer for File Uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadDir = 'uploads/';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir);
+        }
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'ek1-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 3 * 1024 * 1024 }, // 3MB limit
+    fileFilter: (req, file, cb) => {
+        // Accept basic document types
+        const filetypes = /jpeg|jpg|png|pdf|doc|docx|xls|xlsx/;
+        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = filetypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Sadece resim ve belge dosyaları (PDF, Word, Excel) yüklenebilir!'));
+        }
+    }
+});
 
 // GET all reservations (protected - requires login)
 router.get('/', verifyToken, async (req, res) => {
@@ -84,22 +119,50 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST new reservation (public - no auth required)
-router.post('/', async (req, res) => {
-    const { guestId, guestCount, checkInDate, checkOutDate, notes, additionalGuests, assignedRooms, registrar } = req.body;
-
-    const reservation = new Reservation({
-        guest: guestId,
-        guestCount: guestCount || 1,
-        checkInDate,
-        checkOutDate,
-        notes,
-        additionalGuests,
-        assignedRooms: assignedRooms || [],
-        registrar,
-        status: 'pending'
+// Updated to handle multipart/form-data for file upload
+router.post('/', (req, res, next) => {
+    upload.single('ek1File')(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            // A Multer error occurred when uploading.
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ message: 'Dosya boyutu 3MB\'ı geçemez!' });
+            }
+            return res.status(500).json({ message: err.message });
+        } else if (err) {
+            // An unknown error occurred when uploading.
+            return res.status(400).json({ message: err.message });
+        }
+        // Everything went fine.
+        next();
     });
-
+}, async (req, res) => {
     try {
+        let { guestId, guestCount, checkInDate, checkOutDate, notes, additionalGuests, assignedRooms, registrar } = req.body;
+
+        // Parse JSON strings if they come as strings (due to FormData)
+        if (typeof additionalGuests === 'string') {
+            try { additionalGuests = JSON.parse(additionalGuests); } catch (e) { }
+        }
+        if (typeof registrar === 'string') {
+            try { registrar = JSON.parse(registrar); } catch (e) { }
+        }
+        if (typeof assignedRooms === 'string') {
+            try { assignedRooms = JSON.parse(assignedRooms); } catch (e) { }
+        }
+
+        const reservation = new Reservation({
+            guest: guestId,
+            guestCount: guestCount || 1,
+            checkInDate,
+            checkOutDate,
+            notes,
+            additionalGuests,
+            assignedRooms: assignedRooms || [],
+            registrar,
+            status: 'pending',
+            ek1FilePath: req.file ? req.file.path : undefined // Save file path if uploaded
+        });
+
         const newReservation = await reservation.save();
         const populatedRes = await Reservation.findById(newReservation._id).populate('guest');
 

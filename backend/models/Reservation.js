@@ -32,6 +32,7 @@ const reservationSchema = new mongoose.Schema({
     },
     notes: { type: String },
     rejectionReason: { type: String }, // Reason for rejection/cancellation
+    ek1FilePath: { type: String }, // Path to Ek-1 file
     isArchived: { type: Boolean, default: false }, // Archive status
     archivedAt: { type: Date }, // Archive timestamp
     createdAt: { type: Date, default: Date.now }

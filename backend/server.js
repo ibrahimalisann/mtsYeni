@@ -13,6 +13,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use('/uploads', express.static('uploads')); // Serve uploaded files statically
 
 // MongoDB Connection
 // TODO: Replace with actual connection string from env

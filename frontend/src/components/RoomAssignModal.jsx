@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../axiosConfig';
-import { X, BedDouble, User, Users, GripVertical, ChevronDown } from 'lucide-react';
+import { X, BedDouble, User, Users, GripVertical, ChevronDown, FileText, Download, FileSpreadsheet, File as FileIcon, Image } from 'lucide-react';
 import {
     DndContext,
     DragOverlay,
@@ -141,6 +141,8 @@ const DroppableRoom = ({ room, assignedGuests, occupancyInfo, isCollapsed, onTog
                             />
                         </div>
                     </div>
+
+
 
                     {/* Assigned Guests */}
                     <div className="space-y-2">
@@ -497,6 +499,65 @@ const RoomAssignModal = ({ reservation, onClose, onUpdate }) => {
                                             <span className="sm:hidden">Misafirler ({unassignedGuests.length})</span>
                                         </h4>
                                     </div>
+                                    {/* Ek-1 File Download Button */}
+                                    {reservation.ek1FilePath && (() => {
+                                        const ext = reservation.ek1FilePath.split('.').pop().toLowerCase();
+                                        let FileIconComponent = FileText;
+                                        let fileLabel = 'Dosya Mevcut';
+                                        let iconColor = 'text-blue-600';
+
+                                        if (['xls', 'xlsx', 'csv'].includes(ext)) {
+                                            FileIconComponent = FileSpreadsheet;
+                                            fileLabel = 'Excel Dosyası';
+                                            iconColor = 'text-green-600';
+                                        } else if (['pdf'].includes(ext)) {
+                                            FileIconComponent = FileText;
+                                            fileLabel = 'PDF Dosyası';
+                                            iconColor = 'text-red-600';
+                                        } else if (['doc', 'docx'].includes(ext)) {
+                                            FileIconComponent = FileText;
+                                            fileLabel = 'Word Dosyası';
+                                            iconColor = 'text-blue-600';
+                                        } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+                                            FileIconComponent = Image;
+                                            fileLabel = 'Resim Dosyası';
+                                            iconColor = 'text-purple-600';
+                                        } else {
+                                            FileIconComponent = FileIcon;
+                                        }
+
+                                        return (
+                                            <div className="mb-4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`p-2 bg-gray-50 rounded-lg ${iconColor}`}>
+                                                        <FileIconComponent className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-900">{fileLabel}</div>
+                                                        <div className="text-xs text-gray-500 uppercase">{ext}</div>
+                                                    </div>
+                                                </div>
+                                                <a
+                                                    href={`${(() => {
+                                                        // Determine backend URL dinamically
+                                                        const apiUrl = import.meta.env.VITE_API_URL;
+                                                        if (apiUrl) {
+                                                            return apiUrl.replace('/api', '');
+                                                        }
+                                                        // Fallback for local dev
+                                                        return `${window.location.protocol}//${window.location.hostname}:5000`;
+                                                    })()}/${reservation.ek1FilePath.replace(/\\/g, '/')}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                    İndir
+                                                </a>
+                                            </div>
+                                        );
+                                    })()}
+
                                     <div className="space-y-2">
                                         {unassignedGuests.map((guest) => (
                                             <DraggableGuest

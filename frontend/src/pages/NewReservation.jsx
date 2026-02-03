@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from '../axiosConfig';
 import { useNavigate } from 'react-router-dom';
-import { Save, User, Users, AlertCircle, CheckCircle, Download, Upload } from 'lucide-react';
+import { Save, User, Users, AlertCircle, CheckCircle, Download, Upload, X } from 'lucide-react';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 import '../phone-input.css';
@@ -46,6 +46,7 @@ const NewReservation = () => {
 
     // Additional guests for group reservation
     const [additionalGuests, setAdditionalGuests] = useState([]);
+    const [ek1File, setEk1File] = useState(null);
 
     // Detect user's country from IP on component mount
     useEffect(() => {
@@ -197,6 +198,20 @@ const NewReservation = () => {
         setAdditionalGuests(updated);
     };
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 3 * 1024 * 1024) { // 3MB limit
+                alert('Dosya boyutu 3MB\'ı geçemez.');
+                e.target.value = ''; // Reset input
+                return;
+            }
+            setEk1File(file);
+        }
+    };
+
+
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -213,24 +228,32 @@ const NewReservation = () => {
 
             const guestId = guestRes.data._id;
 
-            // 2. Create Reservation
-            const reservationPayload = {
-                guestId,
-                guestCount: formData.guestCount,
-                checkInDate: formData.checkInDate,
-                checkOutDate: formData.checkOutDate,
-                notes: formData.notes,
-                registrar
-            };
+            // 2. Create Reservation with FormData (for File Upload)
+            const submissionData = new FormData();
+            submissionData.append('guestId', guestId);
+            submissionData.append('guestCount', formData.guestCount);
+            submissionData.append('checkInDate', formData.checkInDate);
+            submissionData.append('checkOutDate', formData.checkOutDate);
+            submissionData.append('notes', formData.notes);
+
+            // Complex objects need to be stringified for FormData
+            submissionData.append('registrar', JSON.stringify(registrar));
 
             // Add additional guests if group tab and list is active
             if (activeTab === 'group' && showGuestList && additionalGuests.length > 0) {
                 // Keep valid looking ones (at least first name filled)
                 const validGuests = additionalGuests.filter(g => g.firstName || g.lastName || g.phone);
-                reservationPayload.additionalGuests = validGuests;
+                submissionData.append('additionalGuests', JSON.stringify(validGuests));
             }
 
-            await axios.post('/reservations', reservationPayload);
+            // Append File
+            if (ek1File) {
+                submissionData.append('ek1File', ek1File);
+            }
+
+            await axios.post('/reservations', submissionData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
 
             alert('Rezervasyon başarıyla oluşturuldu!');
             navigate('/');
@@ -509,6 +532,34 @@ const NewReservation = () => {
                     <div>
                         <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Notlar</label>
                         <textarea name="notes" rows="3" value={formData.notes} onChange={handleChange} className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                            Ek-1 Dosyası <span className="font-normal text-gray-400">(Maks. 3MB)</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-600">
+                                <Upload className="w-4 h-4" />
+                                {ek1File ? ek1File.name : 'Dosya Seç'}
+                                <input
+                                    type="file"
+                                    onChange={handleFileChange}
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                    className="hidden"
+                                />
+                            </label>
+                            {ek1File && (
+                                <button
+                                    type="button"
+                                    onClick={() => setEk1File(null)}
+                                    className="text-gray-400 hover:text-red-500"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">Sadece resim ve belge (PDF, Word, Excel) yükleyebilirsiniz.</p>
                     </div>
                 </div>
 
