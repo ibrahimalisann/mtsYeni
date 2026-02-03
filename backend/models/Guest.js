@@ -6,6 +6,7 @@ const guestSchema = new mongoose.Schema({
     identityNumber: { type: String }, // Made optional
     phone: { type: String, required: true },
     email: { type: String },
+    nevi: { type: String }, // Guest type/category
     createdAt: { type: Date, default: Date.now }
 });
 

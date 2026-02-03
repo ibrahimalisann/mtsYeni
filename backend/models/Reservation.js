@@ -19,7 +19,8 @@ const reservationSchema = new mongoose.Schema({
         firstName: { type: String, required: true },
         lastName: { type: String, required: true },
         phone: { type: String, required: true },
-        email: { type: String }
+        email: { type: String },
+        nevi: { type: String }
     }],
     registrar: {
         firstName: { type: String, required: true },
