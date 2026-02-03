@@ -273,7 +273,11 @@ const Dashboard = () => {
                     {showUnassigned && data.unassignedReservations.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
                             {data.unassignedReservations.slice(0, 3).map((r, idx) => (
-                                <div key={idx} className="p-2 bg-orange-50 rounded-lg text-sm flex items-center justify-between">
+                                <div
+                                    key={idx}
+                                    className="p-2 bg-orange-50 rounded-lg text-sm flex items-center justify-between cursor-pointer hover:bg-orange-100 transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); handleRoomAssign(r); }}
+                                >
                                     <div>
                                         <div className="font-medium text-gray-800">
                                             {r.guest?.firstName} {r.guest?.lastName}
@@ -283,7 +287,6 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); handleRoomAssign(r); }}
                                         className="px-3 py-1 bg-orange-500 text-white text-xs rounded-lg hover:bg-orange-600"
                                     >
                                         Oda Ata
