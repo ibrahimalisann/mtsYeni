@@ -37,6 +37,7 @@ const NewReservation = () => {
         lastName: '',
         phone: '',
         email: '',
+        nevi: '',
         guestCount: 1,
         checkInDate: '',
         checkOutDate: '',
@@ -108,7 +109,8 @@ const NewReservation = () => {
                         firstName: '',
                         lastName: '',
                         phone: '',
-                        email: ''
+                        email: '',
+                        nevi: ''
                     }));
                     return [...prev, ...newSlots];
                 } else {
@@ -204,7 +206,8 @@ const NewReservation = () => {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 phone: formData.phone,
-                email: formData.email
+                email: formData.email,
+                nevi: formData.nevi
                 // identityNumber removed as requirement
             });
 
@@ -247,19 +250,22 @@ const NewReservation = () => {
                 'Ad': 'Ahmet',
                 'Soyad': 'Yılmaz',
                 'Telefon': '+905551234567',
-                'Email': 'ahmet@example.com'
+                'Email': 'ahmet@example.com',
+                'Nevi': 'Hocaefendi'
             },
             {
                 'Ad': 'Mehmet',
                 'Soyad': 'Demir',
                 'Telefon': '+905559876543',
-                'Email': 'mehmet@example.com'
+                'Email': 'mehmet@example.com',
+                'Nevi': 'Talebe'
             },
             {
                 'Ad': 'Ayşe',
                 'Soyad': 'Kaya',
                 'Telefon': '+905551239999',
-                'Email': 'ayse@example.com'
+                'Email': 'ayse@example.com',
+                'Nevi': 'Talebe'
             }
         ];
 
@@ -272,7 +278,8 @@ const NewReservation = () => {
             { wch: 15 }, // Ad
             { wch: 15 }, // Soyad
             { wch: 20 }, // Telefon
-            { wch: 25 }  // Email
+            { wch: 25 }, // Email
+            { wch: 15 }  // Nevi
         ];
 
         XLSX.writeFile(wb, 'grup_rezervasyon_template.xlsx');
@@ -305,6 +312,7 @@ const NewReservation = () => {
                     lastName: leader['Soyad'] || leader['soyad'] || '',
                     phone: leader['Telefon'] || leader['telefon'] || '',
                     email: leader['Email'] || leader['email'] || '',
+                    nevi: leader['Nevi'] || leader['nevi'] || '',
                     guestCount: jsonData.length
                 }));
 
@@ -322,7 +330,8 @@ const NewReservation = () => {
                         firstName: row['Ad'] || row['ad'] || '',
                         lastName: row['Soyad'] || row['soyad'] || '',
                         phone: row['Telefon'] || row['telefon'] || '',
-                        email: row['Email'] || row['email'] || ''
+                        email: row['Email'] || row['email'] || '',
+                        nevi: row['Nevi'] || row['nevi'] || ''
                     }));
                     setAdditionalGuests(guests);
                     setShowGuestList(true);
@@ -534,7 +543,7 @@ const NewReservation = () => {
                             </label>
                         </div>
                         <div className="text-xs text-indigo-600 bg-white p-2 rounded border border-indigo-200">
-                            <strong>Kolon Başlıkları:</strong> Ad, Soyad, Telefon, Email
+                            <strong>Kolon Başlıkları:</strong> Ad, Soyad, Telefon, Email, Nevi
                         </div>
                     </div>
                 )}
@@ -598,6 +607,9 @@ const NewReservation = () => {
                             />
                         </div>
                     </div>
+                    <div>
+                        <input type="text" name="nevi" value={formData.nevi} onChange={handleChange} placeholder="Örn: Hocaefendi, Talebe" className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
                 </div>
 
                 {/* Additional Guests List (Group Only) */}
@@ -627,7 +639,6 @@ const NewReservation = () => {
                                         <input
                                             type="text"
                                             placeholder="Ad"
-                                            required
                                             value={guest.firstName}
                                             onChange={(e) => handleAdditionalGuestChange(index, 'firstName', e.target.value)}
                                             className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
@@ -635,7 +646,6 @@ const NewReservation = () => {
                                         <input
                                             type="text"
                                             placeholder="Soyad"
-                                            required
                                             value={guest.lastName}
                                             onChange={(e) => handleAdditionalGuestChange(index, 'lastName', e.target.value)}
                                             className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
@@ -653,6 +663,13 @@ const NewReservation = () => {
                                             placeholder="Email (İsteğe bağlı)"
                                             value={guest.email}
                                             onChange={(e) => handleAdditionalGuestChange(index, 'email', e.target.value)}
+                                            className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Örn: Hocaefendi, Talebe"
+                                            value={guest.nevi || ''}
+                                            onChange={(e) => handleAdditionalGuestChange(index, 'nevi', e.target.value)}
                                             className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
                                         />
                                     </div>
