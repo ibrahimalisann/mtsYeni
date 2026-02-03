@@ -1,11 +1,12 @@
 import { Archive } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const ArchiveConfirmModal = ({ reservation, onConfirm, onClose }) => {
     const guest = reservation.guest || {};
     const guestName = `${guest.firstName} ${guest.lastName}`;
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-fade-in">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
@@ -51,7 +52,8 @@ const ArchiveConfirmModal = ({ reservation, onConfirm, onClose }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

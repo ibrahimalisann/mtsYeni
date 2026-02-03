@@ -1,5 +1,6 @@
 import { X, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from '../axiosConfig';
 
 const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
@@ -48,18 +49,22 @@ const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/50 transition-opacity" onClick={onClose} />
+
+            {/* Modal Content */}
+            <div className="relative bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl shadow-2xl flex flex-col">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10">
+                <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10 shrink-0">
                     <h3 className="text-xl font-bold text-gray-800">Rezervasyonu Düzenle</h3>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                         <X className="w-5 h-5 text-gray-500" />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
                     {/* Guest Info (Read-only) */}
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                         <h4 className="text-sm font-semibold text-gray-600 mb-2">Misafir Bilgisi</h4>
@@ -166,7 +171,7 @@ const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-4 border-t">
+                    <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-white border-gray-100 p-4 -mx-6 -mb-6">
                         <button
                             type="button"
                             onClick={onClose}
@@ -185,7 +190,8 @@ const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

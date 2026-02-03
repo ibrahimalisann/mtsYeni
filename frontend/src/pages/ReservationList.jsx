@@ -127,7 +127,8 @@ const ReservationList = () => {
                 <div className="text-center py-10 text-gray-500">Yükleniyor...</div>
             ) : viewMode === 'list' ? (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full text-left">
+                    {/* Desktop Table */}
+                    <table className="w-full text-left hidden md:table">
                         <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
                                 <th className="p-4 font-semibold text-gray-600">Misafir / Grup Başkanı</th>
@@ -222,6 +223,90 @@ const ReservationList = () => {
                             })}
                         </tbody>
                     </table>
+
+                    {/* Mobile List View */}
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {reservations.map((res) => {
+                            const guest = res.guest || {};
+                            return (
+                                <div key={res._id} className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="font-medium text-gray-900">{guest.firstName} {guest.lastName}</div>
+                                            <div className="text-xs text-gray-400">{guest.phone}</div>
+                                        </div>
+                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${res.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                                            res.status === 'confirmed' ? 'bg-teal-100 text-teal-700' :
+                                                res.status === 'upcoming' ? 'bg-yellow-100 text-yellow-700' :
+                                                    res.status === 'active' ? 'bg-green-100 text-green-700' :
+                                                        res.status === 'completed' ? 'bg-gray-100 text-gray-700' :
+                                                            'bg-red-100 text-red-700'
+                                            }`}>
+                                            {res.status === 'pending' ? 'Müsaitlik Var' :
+                                                res.status === 'confirmed' ? 'Onaylandı' :
+                                                    res.status === 'upcoming' ? 'Gelecek' :
+                                                        res.status === 'active' ? 'Konaklıyor' :
+                                                            res.status === 'completed' ? 'Tamamlandı' : 'İptal'}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-4 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
+                                        <div className="flex items-center gap-1.5">
+                                            <Calendar className="w-4 h-4 text-gray-400" />
+                                            <span className="text-xs">
+                                                {new Date(res.checkInDate).toLocaleDateString('tr-TR')} - {new Date(res.checkOutDate).toLocaleDateString('tr-TR')}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 font-medium ml-auto">
+                                            <User className="w-4 h-4 text-gray-400" />
+                                            {res.guestCount}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-2 pt-2 border-t border-gray-50">
+                                        <button
+                                            onClick={() => setSelectedReservation(res)}
+                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                        >
+                                            <Eye className="w-3.5 h-3.5" />
+                                            Detay
+                                        </button>
+                                        <button
+                                            onClick={() => setEditingReservation(res)}
+                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                                        >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                            Düzenle
+                                        </button>
+                                        {activeTab === 'active' ? (
+                                            <button
+                                                onClick={() => setArchivingReservation(res)}
+                                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                                            >
+                                                <Archive className="w-3.5 h-3.5" />
+                                                Arşivle
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleRestore(res._id)}
+                                                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                                            >
+                                                <ArchiveRestore className="w-3.5 h-3.5" />
+                                                Geri Al
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleDelete(res._id)}
+                                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            Sil
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
 
                     {reservations.length === 0 && (
                         <div className="p-10 text-center text-gray-400">

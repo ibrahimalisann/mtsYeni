@@ -1,5 +1,6 @@
 import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from '../axiosConfig';
 import RejectReservationModal from './RejectReservationModal';
 import RoomAssignModal from './RoomAssignModal';
@@ -27,19 +28,23 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-300">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/50 transition-opacity" onClick={onClose} />
+
+            {/* Modal Content */}
+            <div className="relative bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
 
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10">
+                <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10 shrink-0">
                     <h3 className="text-xl font-bold text-gray-800">Rezervasyon Detayı</h3>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                         <X className="w-5 h-5 text-gray-500" />
                     </button>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1">
 
                     {/* Main Info */}
                     <div className={`p-4 rounded-xl border ${reservation.status === 'pending' ? 'bg-blue-50 border-blue-100' : 'bg-green-50 border-green-100'}`}>
@@ -200,7 +205,7 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                     </div>
                 </div>
 
-                <div className="bg-gray-50 p-4 border-t flex justify-end gap-3 sticky bottom-0">
+                <div className="bg-gray-50 p-4 border-t flex justify-end gap-3 sticky bottom-0 shrink-0">
                     <button onClick={onClose} className="px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-gray-200 transition-colors">
                         Kapat
                     </button>
@@ -240,7 +245,8 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                     onUpdate={onUpdate}
                 />
             )}
-        </div>
+        </div>,
+        document.body
     );
 };
 
