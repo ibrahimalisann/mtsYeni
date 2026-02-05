@@ -33,6 +33,14 @@ const ReservationList = () => {
 
     const handleUpdate = (updatedReservation) => {
         setReservations(prev => prev.map(r => r._id === updatedReservation._id ? updatedReservation : r));
+
+        // Also update selected/editing states if they match
+        if (selectedReservation && selectedReservation._id === updatedReservation._id) {
+            setSelectedReservation(updatedReservation);
+        }
+        if (editingReservation && editingReservation._id === updatedReservation._id) {
+            setEditingReservation(updatedReservation);
+        }
     };
 
     const handleDelete = async (reservationId) => {

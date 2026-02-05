@@ -1,4 +1,5 @@
-import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble } from 'lucide-react';
+import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../axiosConfig';
@@ -26,6 +27,108 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
             console.error('Error confirming reservation:', error);
             alert('Rezervasyon onaylanırken bir hata oluştu.');
         }
+    };
+
+    // Excel Export
+    const handleExportExcel = () => {
+        if (!reservation) return;
+
+        // Prepare data: Leader + Additional Guests
+        const exportData = [];
+
+        // 1. Leader
+        exportData.push({
+            'Ad': guest.firstName || '',
+            'Soyad': guest.lastName || '',
+            'Telefon': guest.phone || '',
+            'Email': guest.email || '',
+            'Nevi': guest.nevi || '' // Assuming 'nevi' might exist on guest object or need to be fetched
+        });
+
+        // 2. Additional Guests
+        additionalGuests.forEach(g => {
+            exportData.push({
+                'Ad': g.firstName || '',
+                'Soyad': g.lastName || '',
+                'Telefon': g.phone || '',
+                'Email': g.email || '',
+                'Nevi': g.nevi || ''
+            });
+        });
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Misafir Listesi');
+
+        // Set column widths
+        ws['!cols'] = [
+            { wch: 15 }, // Ad
+            { wch: 15 }, // Soyad
+            { wch: 20 }, // Telefon
+            { wch: 25 }, // Email
+            { wch: 15 }  // Nevi
+        ];
+
+        XLSX.writeFile(wb, `misafir_listesi_${guest.firstName}_${guest.lastName}.xlsx`);
+    };
+
+    // Excel Import
+    const handleImportExcel = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                if (jsonData.length === 0) {
+                    alert('Excel dosyası boş!');
+                    return;
+                }
+
+                // Confirm update
+                if (!window.confirm(`${jsonData.length} kişilik liste yüklenecek. Mevcut liste güncellensin mi?`)) {
+                    e.target.value = '';
+                    return;
+                }
+
+                // Process Data
+                // Row 0 is Leader (we skip updating leader details for now to avoid complexity, or we could update if API supported it)
+                // We mainly want to update the LIST (Count + Additional Guests)
+
+                // New Guest Count
+                const newGuestCount = jsonData.length;
+
+                // New Additional Guests (Slice from index 1)
+                const newAdditionalGuests = jsonData.slice(1).map(row => ({
+                    firstName: row['Ad'] || row['ad'] || '',
+                    lastName: row['Soyad'] || row['soyad'] || '',
+                    phone: row['Telefon'] || row['telefon'] || '',
+                    email: row['Email'] || row['email'] || '',
+                    nevi: row['Nevi'] || row['nevi'] || ''
+                }));
+
+                // Call API to Update Reservation
+                const res = await axios.put(`/reservations/${reservation._id}`, {
+                    guestCount: newGuestCount,
+                    additionalGuests: newAdditionalGuests
+                });
+
+                onUpdate(res.data);
+                alert('Misafir listesi başarıyla güncellendi!');
+                e.target.value = ''; // Reset input
+
+            } catch (error) {
+                console.error('Excel import error:', error);
+                alert('Excel yüklenirken bir hata oluştu: ' + error.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
     };
 
     return createPortal(
@@ -95,7 +198,7 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-100 text-gray-600 font-medium border-b border-gray-200">
                                     <tr>
-                                        <th className="p-3">Adman Soyad</th>
+                                        <th className="p-3">Ad Soyad</th>
                                         <th className="p-3">Telefon</th>
                                         <th className="p-3">Durum</th>
                                     </tr>
@@ -110,8 +213,8 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                                     {/* Others */}
                                     {additionalGuests.map((g, idx) => (
                                         <tr key={idx} className="bg-white">
-                                            <td className="p-3">{g.firstName} {g.lastName}</td>
-                                            <td className="p-3 text-gray-500">{g.phone}</td>
+                                            <td className="p-3">{g.firstName || '-'} {g.lastName || '-'}</td>
+                                            <td className="p-3 text-gray-500">{g.phone || '-'}</td>
                                             <td className="p-3"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Misafir</span></td>
                                         </tr>
                                     ))}
@@ -154,13 +257,38 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                             <p className="text-sm text-gray-500 italic">Henüz oda atanmamış.</p>
                         )}
                         {(reservation.status === 'confirmed' || reservation.status === 'active') && (
-                            <button
-                                onClick={() => setShowRoomModal(true)}
-                                className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-                            >
-                                <BedDouble className="w-4 h-4" />
-                                {(reservation.roomAssignments?.length > 0 || reservation.assignedRooms?.length > 0) ? 'Odaları Değiştir' : 'Oda Ata'}
-                            </button>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                                {/* Room Assign Button */}
+                                <button
+                                    onClick={() => setShowRoomModal(true)}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                >
+                                    <BedDouble className="w-4 h-4" />
+                                    {(reservation.roomAssignments?.length > 0 || reservation.assignedRooms?.length > 0) ? 'Odaları Değiştir' : 'Oda Ata'}
+                                </button>
+
+                                {/* Excel Export Button */}
+                                <button
+                                    onClick={handleExportExcel}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                                    title="Mevcut listeyi Excel olarak indir"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span className="hidden sm:inline">İndir</span>
+                                </button>
+
+                                {/* Excel Import Button */}
+                                <label className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer" title="Excel ile misafir listesini güncelle">
+                                    <Upload className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Yükle</span>
+                                    <input
+                                        type="file"
+                                        accept=".xlsx,.xls"
+                                        onChange={handleImportExcel}
+                                        className="hidden"
+                                    />
+                                </label>
+                            </div>
                         )}
                     </div>
 
