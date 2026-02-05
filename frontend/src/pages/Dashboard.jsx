@@ -96,7 +96,10 @@ const Dashboard = () => {
                 </div>
 
                 {/* Arrivals Today */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => data.arrivals > 0 && toggleSection('arrivals')}
+                >
                     <div className="p-4 rounded-xl bg-emerald-50">
                         <LogIn className="w-8 h-8 text-emerald-600" />
                     </div>
@@ -105,17 +108,17 @@ const Dashboard = () => {
                         <p className="text-3xl font-bold text-gray-800">{data.arrivals}</p>
                     </div>
                     {data.arrivals > 0 && (
-                        <div
-                            className="text-gray-400 cursor-pointer"
-                            onClick={() => toggleSection('arrivals')}
-                        >
+                        <div className="text-gray-400">
                             {activeSection === 'arrivals' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                         </div>
                     )}
                 </div>
 
                 {/* Departures Today */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => data.departures > 0 && toggleSection('departures')}
+                >
                     <div className="p-4 rounded-xl bg-amber-50">
                         <LogOut className="w-8 h-8 text-amber-600" />
                     </div>
@@ -124,10 +127,7 @@ const Dashboard = () => {
                         <p className="text-3xl font-bold text-gray-800">{data.departures}</p>
                     </div>
                     {data.departures > 0 && (
-                        <div
-                            className="text-gray-400 cursor-pointer"
-                            onClick={() => toggleSection('departures')}
-                        >
+                        <div className="text-gray-400">
                             {activeSection === 'departures' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                         </div>
                     )}
@@ -181,31 +181,91 @@ const Dashboard = () => {
             {/* Pending & Unassigned Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Pending Reservations */}
-                <div className={`bg-white p-6 rounded-2xl shadow-sm border ${data.pendingCount > 0 ? 'border-yellow-300' : 'border-gray-100'} flex items-center gap-4`}>
+                <div
+                    className={`bg-white p-6 rounded-2xl shadow-sm border ${data.pendingCount > 0 ? 'border-yellow-300' : 'border-gray-100'} flex items-center gap-4 hover:shadow-md transition-shadow ${data.pendingCount > 0 ? 'cursor-pointer' : ''}`}
+                    onClick={() => data.pendingCount > 0 && toggleSection('pending')}
+                >
                     <div className={`p-4 rounded-xl ${data.pendingCount > 0 ? 'bg-yellow-50' : 'bg-gray-50'}`}>
                         <Clock className={`w-8 h-8 ${data.pendingCount > 0 ? 'text-yellow-600' : 'text-gray-400'}`} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <p className="text-gray-500 text-sm font-medium">Onay Bekleyen</p>
                         <p className={`text-3xl font-bold ${data.pendingCount > 0 ? 'text-yellow-600' : 'text-gray-800'}`}>
                             {data.pendingCount}
                         </p>
                     </div>
+                    {data.pendingCount > 0 && (
+                        <div className="text-gray-400">
+                            {activeSection === 'pending' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        </div>
+                    )}
                 </div>
 
                 {/* Unassigned Guests */}
-                <div className={`bg-white p-6 rounded-2xl shadow-sm border ${data.unassignedCount > 0 ? 'border-orange-300' : 'border-gray-100'} flex items-center gap-4`}>
+                <div
+                    className={`bg-white p-6 rounded-2xl shadow-sm border ${data.unassignedCount > 0 ? 'border-orange-300' : 'border-gray-100'} flex items-center gap-4 hover:shadow-md transition-shadow ${data.unassignedCount > 0 ? 'cursor-pointer' : ''}`}
+                    onClick={() => data.unassignedCount > 0 && toggleSection('unassigned')}
+                >
                     <div className={`p-4 rounded-xl ${data.unassignedCount > 0 ? 'bg-orange-50' : 'bg-gray-50'}`}>
                         <AlertTriangle className={`w-8 h-8 ${data.unassignedCount > 0 ? 'text-orange-600' : 'text-gray-400'}`} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <p className="text-gray-500 text-sm font-medium">Atama Bekleyen</p>
                         <p className={`text-3xl font-bold ${data.unassignedCount > 0 ? 'text-orange-600' : 'text-gray-800'}`}>
                             {data.unassignedCount}
                         </p>
                     </div>
+                    {data.unassignedCount > 0 && (
+                        <div className="text-gray-400">
+                            {activeSection === 'unassigned' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* Pending Dropdown - Full Width Below Cards */}
+            {activeSection === 'pending' && data.pendingReservations.length > 0 && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-yellow-200">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-yellow-600" />
+                        Onay Bekleyen Rezervasyonlar
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {formatGuestList(data.pendingReservations).map((g, idx) => (
+                            <div key={idx} className="p-4 bg-yellow-50 rounded-lg">
+                                <div className="font-medium text-gray-800">{g.name}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {g.count > 1 && `${g.count} kişi • `}
+                                    {g.city && g.country ? `${g.city} / ${g.country}` : (g.city || g.country || '')}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">{g.checkIn} → {g.checkOut}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Unassigned Dropdown - Full Width Below Cards */}
+            {activeSection === 'unassigned' && data.unassignedReservations.length > 0 && (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-orange-200">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5 text-orange-600" />
+                        Atama Bekleyen Misafirler
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {formatGuestList(data.unassignedReservations).map((g, idx) => (
+                            <div key={idx} className="p-4 bg-orange-50 rounded-lg">
+                                <div className="font-medium text-gray-800">{g.name}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {g.count > 1 && `${g.count} kişi • `}
+                                    {g.city && g.country ? `${g.city} / ${g.country}` : (g.city || g.country || '')}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">{g.checkIn} → {g.checkOut}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Upcoming Arrivals */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
