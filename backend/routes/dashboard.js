@@ -15,14 +15,19 @@ router.get('/', verifyToken, async (req, res) => {
         const rooms = await Room.find({ isActive: true });
         const totalCapacity = rooms.reduce((sum, room) => sum + room.capacity, 0);
 
-        // Active reservations (currently staying)
-        const activeReservations = await Reservation.find({
-            status: 'active'
-        }).populate('guest');
+        // Calculate Occupancy
+        // Include guests who are:
+        // 1. 'active' (Checked In)
+        // 2. 'confirmed' or 'upcoming' AND Scheduled to stay tonight (CheckIn < Tomorrow AND CheckOut > Today)
+        const occupancyReservations = await Reservation.find({
+            status: { $in: ['active', 'confirmed', 'upcoming'] },
+            checkInDate: { $lt: tomorrow },
+            checkOutDate: { $gte: tomorrow } // Must stay at least until tomorrow (i.e. staying tonight)
+        });
 
         // Calculate occupied beds
         let occupiedBeds = 0;
-        activeReservations.forEach(res => {
+        occupancyReservations.forEach(res => {
             occupiedBeds += res.guestCount || 1;
         });
 
@@ -32,10 +37,10 @@ router.get('/', verifyToken, async (req, res) => {
             status: { $in: ['confirmed', 'upcoming'] }
         }).populate('guest');
 
-        // Departures Today
+        // Departures Today (checking out today)
         const departuresToday = await Reservation.find({
             checkOutDate: { $gte: today, $lt: tomorrow },
-            status: 'active'
+            status: { $in: ['active', 'confirmed', 'upcoming'] }
         }).populate('guest');
 
         // Upcoming arrivals - next 7 days
