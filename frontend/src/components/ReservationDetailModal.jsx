@@ -1,14 +1,16 @@
-import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble, Download, Upload } from 'lucide-react';
+import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble, Download, Upload, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from '../axiosConfig';
 import RejectReservationModal from './RejectReservationModal';
 import RoomAssignModal from './RoomAssignModal';
+import { domToPng } from 'modern-screenshot';
 
 const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [showRoomModal, setShowRoomModal] = useState(false);
+    const modalContentRef = useRef(null);
 
     if (!reservation) return null;
 
@@ -131,13 +133,113 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
         reader.readAsArrayBuffer(file);
     };
 
+    // Take screenshot of modal and copy to clipboard
+    const handleCopyInfo = async () => {
+        if (!modalContentRef.current) {
+            alert('Modal içeriği bulunamadı.');
+            return;
+        }
+
+        try {
+            console.log('Screenshot başlıyor...');
+
+            // Get scrollable content div
+            const scrollableDiv = modalContentRef.current.querySelector('.overflow-y-auto');
+            const originalOverflow = scrollableDiv ? scrollableDiv.style.overflow : null;
+            const originalMaxHeight = scrollableDiv ? scrollableDiv.style.maxHeight : null;
+
+            // Also store modal's constraints
+            const originalModalMaxHeight = modalContentRef.current.style.maxHeight;
+            const originalModalHeight = modalContentRef.current.style.height;
+            const originalClassName = modalContentRef.current.className;
+
+            // Temporarily remove overflow to capture full content
+            if (scrollableDiv) {
+                scrollableDiv.style.overflow = 'visible';
+                scrollableDiv.style.maxHeight = 'none';
+            }
+
+            // Remove Tailwind max-height class constraint from modal
+            modalContentRef.current.className = originalClassName.replace('sm:max-h-[90vh]', '').replace('h-full', '');
+
+            // Expand modal to show all content
+            modalContentRef.current.style.maxHeight = 'none';
+            modalContentRef.current.style.height = 'auto';
+
+            // Wait a bit for layout to settle
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Capture using modern-screenshot (supports oklch!)
+            const dataUrl = await domToPng(modalContentRef.current, {
+                scale: 2,
+                backgroundColor: '#ffffff'
+            });
+
+            console.log('Screenshot oluşturuldu');
+
+            // Restore original overflow
+            if (scrollableDiv) {
+                scrollableDiv.style.overflow = originalOverflow;
+                scrollableDiv.style.maxHeight = originalMaxHeight;
+            }
+            modalContentRef.current.style.maxHeight = originalModalMaxHeight;
+            modalContentRef.current.style.height = originalModalHeight;
+            modalContentRef.current.className = originalClassName;
+
+            // Convert data URL to blob
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+
+            console.log('Blob oluşturuldu, boyut:', blob.size);
+
+            try {
+                // Try to copy to clipboard
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'image/png': blob
+                    })
+                ]);
+                console.log('Panoya kopyalandı');
+                alert('Ekran görüntüsü panoya kopyalandı!');
+            } catch (err) {
+                console.error('Clipboard hatası:', err);
+
+                // Try Web Share API (especially useful on mobile)
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'screenshot.png', { type: 'image/png' })] })) {
+                    try {
+                        const file = new File([blob], `rezervasyon_${guest.firstName}_${guest.lastName}.png`, { type: 'image/png' });
+                        await navigator.share({
+                            files: [file],
+                            title: 'Rezervasyon Detayı',
+                            text: `${guest.firstName} ${guest.lastName} - Rezervasyon Ekran Görüntüsü`
+                        });
+                        console.log('Paylaşıldı');
+                        return; // Exit early on successful share
+                    } catch (shareErr) {
+                        console.error('Paylaşım hatası:', shareErr);
+                    }
+                }
+
+                // Final fallback: download the image
+                const link = document.createElement('a');
+                link.download = `rezervasyon_${guest.firstName}_${guest.lastName}_${new Date().getTime()}.png`;
+                link.href = dataUrl;
+                link.click();
+                alert('Görüntü indirildi!');
+            }
+        } catch (error) {
+            console.error('Screenshot hatası:', error);
+            alert('Ekran görüntüsü alınırken bir hata oluştu: ' + error.message);
+        }
+    };
+
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/50 transition-opacity" onClick={onClose} />
 
             {/* Modal Content */}
-            <div className="relative bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
+            <div ref={modalContentRef} className="relative bg-white w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in duration-300">
 
                 {/* Header */}
                 <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10 shrink-0">
@@ -337,6 +439,9 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                     <button onClick={onClose} className="px-4 py-2 rounded-lg font-medium text-gray-600 hover:bg-gray-200 transition-colors">
                         Kapat
                     </button>
+                    <button onClick={handleCopyInfo} className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm" title="Tüm bilgileri kopyala">
+                        <Copy className="w-4 h-4" />
+                        Paylaş                    </button>
                     {(reservation.status === 'pending' || reservation.status === 'upcoming') && (
                         <>
                             <button onClick={() => setShowRejectModal(true)} className="px-4 py-2 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors flex items-center gap-2 shadow-sm">

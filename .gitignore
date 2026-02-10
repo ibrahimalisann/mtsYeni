@@ -35,5 +35,6 @@ coverage/
 *.tmp
 
 # Data files
+backend/data/presets.json
 backend/data/settings.json
 backend/uploads/
