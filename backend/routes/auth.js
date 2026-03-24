@@ -3,12 +3,12 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { JWT_SECRET } = require('../middleware/authMiddleware');
+const { verifyToken, JWT_SECRET } = require('../middleware/authMiddleware'); // authMiddleware yerine verifyToken import edildi
 
 // Register (for initial setup or admin creating users)
 router.post('/register', async (req, res) => {
     try {
-        const { username, password, role } = req.body;
+        const { username, password, role, fullName, phone } = req.body;
 
         // Check if user exists
         const existingUser = await User.findOne({ username });
@@ -23,7 +23,9 @@ router.post('/register', async (req, res) => {
         const user = new User({
             username,
             password: hashedPassword,
-            role: role || 'user'
+            role: role || 'user',
+            fullName,
+            phone
         });
 
         await user.save();
@@ -112,7 +114,7 @@ router.get('/verify', async (req, res) => {
 });
 
 // GET all users
-router.get('/users', async (req, res) => {
+router.get('/users', verifyToken, async (req, res) => {
     try {
         const users = await User.find().select('-password');
         res.json(users);
@@ -121,8 +123,35 @@ router.get('/users', async (req, res) => {
     }
 });
 
+// Update user details
+router.put('/users/:id', verifyToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { username, fullName, phone, role, password } = req.body;
+
+        const updateData = { username, fullName, phone, role };
+        
+        // Eğer şifre gönderilmişse (boş değilse) onu da güncelle
+        if (password && password.trim() !== "") {
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(password, salt);
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(id, updateData, { new: true }).select('-password');
+        
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+        }
+
+        res.json(updatedUser);
+    } catch (error) {
+        console.error('User update error:', error);
+        res.status(500).json({ message: 'Sunucu hatası' });
+    }
+});
+
 // DELETE user
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', verifyToken, async (req, res) => {
     try {
         const userCount = await User.countDocuments({ role: 'admin' });
         const userToDelete = await User.findById(req.params.id);

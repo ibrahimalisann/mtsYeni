@@ -4,6 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Reservation = require('../models/Reservation');
+const User = require('../models/User'); // Added User model for admin notifications
 const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const { logActivity, getClientIp, formatDateTR } = require('../utils/logger');
 const { sendWhatsAppMessage } = require('../utils/whatsapp');
@@ -195,7 +196,35 @@ router.post('/', (req, res, next) => {
 *Bu form gönderildikten sonra SERHAT OFİS tarafından onaylanması icap etmektedir.*
 Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
 
+        // Prepare Admin Notification Message
+        const adminNotifyMsg = `🔔 *Yeni Rezervasyon Talebi Alındı*
+        
+*Misafir:* ${guestName}
+*Kişi Sayısı:* ${guestCount || 1}
+*Tarih:* ${formatDateTR(checkInDate)} - ${formatDateTR(checkOutDate)}
+*Kayıt Yapan:* ${registrarName}
+${notes ? `*Not:* ${notes}` : ''}
+
+_Sistem üzerinden onay beklemektedir._`;
+
         let whatsappStatus = '';
+
+        // Notify Admins with delay
+        const admins = await User.find({ role: 'admin' });
+        if (admins.length > 0) {
+            admins.forEach((admin, index) => {
+                if (admin.phone) {
+                    setTimeout(async () => {
+                        try {
+                            await sendWhatsAppMessage(admin.phone, adminNotifyMsg);
+                            console.log(`Admin notification sent to: ${admin.username}`);
+                        } catch (err) {
+                            console.error(`Failed to notify admin ${admin.username}:`, err);
+                        }
+                    }, index * 35000); // 35 seconds delay between admins
+                }
+            });
+        }
 
         // Send to Registrar (person who filled the form)
         if (registrar?.phone) {

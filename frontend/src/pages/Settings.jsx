@@ -29,10 +29,12 @@ const Settings = () => {
     const [users, setUsers] = useState([]);
     const [usersLoading, setUsersLoading] = useState(false);
     const [showUserModal, setShowUserModal] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
     const [userFormData, setUserFormData] = useState({
         username: '',
         password: '',
         fullName: '',
+        phone: '',
         role: 'user'
     });
 
@@ -180,17 +182,35 @@ const Settings = () => {
         }
     };
 
+    const handleUserEdit = (user) => {
+        setEditingUser(user);
+        setUserFormData({
+            username: user.username,
+            password: '', // Şifreyi boş bırakıyoruz (sadece değişecekse girilecek)
+            fullName: user.fullName || '',
+            phone: user.phone || '',
+            role: user.role
+        });
+        setShowUserModal(true);
+    };
+
     const handleUserSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('/auth/register', userFormData);
+            if (editingUser) {
+                await axios.put(`/auth/users/${editingUser._id}`, userFormData);
+                alert('Kullanıcı güncellendi!');
+            } else {
+                await axios.post('/auth/register', userFormData);
+                alert('Kullanıcı başarıyla oluşturuldu.');
+            }
             setShowUserModal(false);
-            setUserFormData({ username: '', password: '', fullName: '', role: 'user' });
+            setEditingUser(null);
+            setUserFormData({ username: '', password: '', fullName: '', phone: '', role: 'user' });
             fetchUsers();
-            alert('Kullanıcı başarıyla oluşturuldu.');
         } catch (error) {
-            console.error('Error creating user:', error);
-            alert('Kullanıcı oluşturulamadı: ' + (error.response?.data?.message || ''));
+            console.error('Error saving user:', error);
+            alert('İşlem başarısız: ' + (error.response?.data?.message || ''));
         }
     };
 
@@ -402,6 +422,13 @@ const Settings = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
                                                 <button
+                                                    onClick={() => handleUserEdit(user)}
+                                                    className="text-blue-600 hover:text-blue-900 mr-3"
+                                                    title="Düzenle"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
                                                     onClick={() => handleUserDelete(user._id)}
                                                     className="text-red-600 hover:text-red-900"
                                                     disabled={user.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1}
@@ -424,8 +451,10 @@ const Settings = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
                         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                            <h3 className="text-xl font-semibold text-gray-900">Yeni Kullanıcı Ekle</h3>
-                            <button onClick={() => setShowUserModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <h3 className="text-xl font-semibold text-gray-900">
+                                {editingUser ? 'Kullanıcıyı Düzenle' : 'Yeni Kullanıcı Ekle'}
+                            </h3>
+                            <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="text-gray-400 hover:text-gray-600">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
@@ -441,10 +470,12 @@ const Settings = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Şifre *</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {editingUser ? 'Yeni Şifre (Değiştirmek istemiyorsanız boş bırakın)' : 'Şifre *'}
+                                </label>
                                 <input
                                     type="password"
-                                    required
+                                    required={!editingUser}
                                     value={userFormData.password}
                                     onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
                                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -457,6 +488,16 @@ const Settings = () => {
                                     value={userFormData.fullName}
                                     onChange={(e) => setUserFormData({ ...userFormData, fullName: e.target.value })}
                                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Telefon Numarası</label>
+                                <input
+                                    type="tel"
+                                    value={userFormData.phone}
+                                    onChange={(e) => setUserFormData({ ...userFormData, phone: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    placeholder="90 xxx xxx xx xx"
                                 />
                             </div>
                             <div>
