@@ -226,36 +226,43 @@ _Sistem üzerinden onay beklemektedir._`;
             });
         }
 
-        // Send to Registrar (person who filled the form)
-        if (registrar?.phone) {
-            try {
-                const sent = await sendWhatsAppMessage(registrar.phone, confirmationMsg);
-                if (sent) whatsappStatus += ' (WhatsApp: Kayıt Yapana Gönderildi)';
-                else whatsappStatus += ' (WhatsApp: Kayıt Yapana Başarısız)';
-            } catch (waError) {
-                console.error('WhatsApp notification error (registrar):', waError);
-                whatsappStatus += ' (WhatsApp: Kayıt Yapana Hatası)';
-            }
-        }
+        // WhatsApp to Registrar and Group Leader - Only if requester is an admin
+        const isRequesterAdmin = req.user?.role === 'admin';
 
-        // Send to Group Leader/Guest (if different from registrar)
-        if (populatedRes.guest?.phone && populatedRes.guest.phone !== registrar?.phone) {
-            const leaderName = `${populatedRes.guest.firstName} ${populatedRes.guest.lastName}`;
-            const leaderMsg = `Muhterem *${leaderName}* talebiniz oluşturuldu.
+        if (isRequesterAdmin) {
+            // Send to Registrar (person who filled the form)
+            if (registrar?.phone) {
+                try {
+                    const sent = await sendWhatsAppMessage(registrar.phone, confirmationMsg);
+                    if (sent) whatsappStatus += ' (WhatsApp: Kayıt Yapana Gönderildi)';
+                    else whatsappStatus += ' (WhatsApp: Kayıt Yapana Başarısız)';
+                } catch (waError) {
+                    console.error('WhatsApp notification error (registrar):', waError);
+                    whatsappStatus += ' (WhatsApp: Kayıt Yapana Hatası)';
+                }
+            }
+
+            // Send to Group Leader/Guest (if different from registrar)
+            if (populatedRes.guest?.phone && populatedRes.guest.phone !== registrar?.phone) {
+                const leaderName = `${populatedRes.guest.firstName} ${populatedRes.guest.lastName}`;
+                const leaderMsg = `Muhterem *${leaderName}* talebiniz oluşturuldu.
 *Bu form gönderildikten sonra SERHAT OFİS tarafından onaylanması icap etmektedir.*
 Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
 
-            // Send with 5 seconds delay (non-blocking)
-            setTimeout(async () => {
-                try {
-                    await sendWhatsAppMessage(populatedRes.guest.phone, leaderMsg);
-               //     console.log(`Delayed WhatsApp sent to Group Leader: ${leaderName}`);
-                } catch (err) {
-                    console.error(`Failed to send delayed WhatsApp to Group Leader: ${leaderName}`, err);
-                }
-            }, 5000);
+                // Send with 5 seconds delay (non-blocking)
+                setTimeout(async () => {
+                    try {
+                        await sendWhatsAppMessage(populatedRes.guest.phone, leaderMsg);
+                    } catch (err) {
+                        console.error(`Failed to send delayed WhatsApp to Group Leader: ${leaderName}`, err);
+                    }
+                }, 5000);
 
-            whatsappStatus += ' (Grup Lideri: Kuyruklandı)';
+                whatsappStatus += ' (Grup Lideri: Kuyruklandı)';
+            }
+        } else {
+            console.log('User role requester: WhatsApp notifications to guest/registrar skipped (only admins notify).');
+            whatsappStatus += ' (WhatsApp: Kullanıcı rolü nedeniyle atlandı)';
         }
 
         // Update activity log with WhatsApp status if sent

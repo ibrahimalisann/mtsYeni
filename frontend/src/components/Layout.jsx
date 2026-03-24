@@ -6,7 +6,7 @@ import { useState } from 'react';
 
 const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
     const location = useLocation();
-    const { isAuthenticated, isAdmin } = useAuth();
+    const { isAuthenticated } = useAuth();
     // const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Removed internal state
 
     const navigation = [
@@ -19,8 +19,8 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         { name: 'Ayarlar', path: '/admin/settings', icon: Settings },
     ];
 
-    // Public page layout (not authenticated or not admin)
-    if (!isAuthenticated || !isAdmin) {
+    // Public page layout (not authenticated)
+    if (!isAuthenticated) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50">
                 {/* Minimal Header with Login */}

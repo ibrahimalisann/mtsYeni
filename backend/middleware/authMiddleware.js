@@ -19,9 +19,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const requireAdmin = (req, res, next) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Bu işlem için admin yetkisi gerekli' });
-    }
+    // Tüm kullanıcıların admin gibi işlem yapabilmesi için yetki kontrolü kaldırıldı
     next();
 };
 

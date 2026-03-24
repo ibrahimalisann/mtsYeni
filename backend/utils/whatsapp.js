@@ -27,6 +27,12 @@ const sendWhatsAppMessage = async (phone, message) => {
             return false;
         }
 
+        // Eğer 'to' bir objeyse ve 'role' bilgisi varsa (kullanıcı objesi geçilmişse)
+        // Sadece admin olanlara mesaj gitmesini sağla. 
+        // Not: Bu mantık projenin whatsapp.js içindeki kullanımına göre özelleştirilmelidir.
+        // Eğer 'to' direkt telefon numarasıysa, backend/routes/ içindeki çağrılarda 
+        // kullanıcı rolü kontrol edilerek bu fonksiyon çağrılmalıdır.
+
         const payload = {
             action: 'send-message',
             type: 'text',
