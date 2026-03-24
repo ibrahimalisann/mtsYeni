@@ -220,7 +220,7 @@ Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
             setTimeout(async () => {
                 try {
                     await sendWhatsAppMessage(populatedRes.guest.phone, leaderMsg);
-                    console.log(`Delayed WhatsApp sent to Group Leader: ${leaderName}`);
+               //     console.log(`Delayed WhatsApp sent to Group Leader: ${leaderName}`);
                 } catch (err) {
                     console.error(`Failed to send delayed WhatsApp to Group Leader: ${leaderName}`, err);
                 }

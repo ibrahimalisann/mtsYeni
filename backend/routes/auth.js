@@ -111,4 +111,36 @@ router.get('/verify', async (req, res) => {
     }
 });
 
+// GET all users
+router.get('/users', async (req, res) => {
+    try {
+        const users = await User.find().select('-password');
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Kullanıcılar getirilemedi', error: error.message });
+    }
+});
+
+// DELETE user
+router.delete('/users/:id', async (req, res) => {
+    try {
+        const userCount = await User.countDocuments({ role: 'admin' });
+        const userToDelete = await User.findById(req.params.id);
+
+        if (!userToDelete) {
+            return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
+        }
+
+        // Prevent deleting the last admin
+        if (userToDelete.role === 'admin' && userCount <= 1) {
+            return res.status(400).json({ message: 'Sistemdeki son yönetici silinemez!' });
+        }
+
+        await User.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Kullanıcı başarıyla silindi' });
+    } catch (error) {
+        res.status(500).json({ message: 'Kullanıcı silinemedi', error: error.message });
+    }
+});
+
 module.exports = router;

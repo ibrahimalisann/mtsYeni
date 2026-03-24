@@ -13,10 +13,10 @@ import {
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 
-const DraggableGuest = ({ id, guest, index, sourceRoom = null }) => {
+const DraggableGuest = ({ id, guest, index, rooms = [], occupancyInfo = {}, currentRoom = null, onRoomChange, assignments }) => {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: id,
-        data: { guest, index, sourceRoom }
+        data: { guest, index, sourceRoom: currentRoom }
     });
 
     const style = transform ? {
@@ -33,41 +33,68 @@ const DraggableGuest = ({ id, guest, index, sourceRoom = null }) => {
                 ...style,
                 touchAction: 'none'
             }}
-            className={`flex items-center gap-3 p-3 rounded-lg cursor-move transition-all ${isDragging
+            className={`flex flex-col gap-2 p-3 rounded-lg transition-all ${isDragging
                 ? 'shadow-lg border-indigo-500 z-50 bg-white border-2'
                 : isAnonymous
                     ? 'bg-gray-100 border-2 border-dashed border-gray-300 hover:border-gray-400'
                     : 'bg-white border-2 border-gray-200 hover:border-indigo-400'
                 }`}
-            {...listeners}
-            {...attributes}
         >
-            <GripVertical className={`w-4 h-4 ${isAnonymous ? 'text-gray-400' : 'text-gray-500'}`} />
-            <div className="flex-1">
-                <div className={`font-medium text-sm ${isAnonymous ? 'text-gray-600' : 'text-gray-900'}`}>
-                    {guest.firstName} {guest.lastName}
-                    {index === 0 && (
-                        <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
-                            Grup Başkanı
-                        </span>
-                    )}
-                    {isAnonymous && (
-                        <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
-                            Bilgi yok
-                        </span>
-                    )}
+            <div className="flex items-center gap-3">
+                <div {...listeners} {...attributes} className="cursor-move p-1 hover:bg-gray-100 rounded">
+                    <GripVertical className={`w-4 h-4 ${isAnonymous ? 'text-gray-400' : 'text-gray-500'}`} />
                 </div>
-                <div className={`text-xs ${isAnonymous ? 'text-gray-500 italic' : 'text-gray-500'}`}>
-                    {guest.nevi || 'Nevi belirtilmemiş'}
+                <div className="flex-1">
+                    <div className={`font-medium text-sm ${isAnonymous ? 'text-gray-600' : 'text-gray-900'}`}>
+                        {guest.firstName} {guest.lastName}
+                        {index === 0 && (
+                            <span className="ml-2 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                                Grup Başkanı
+                            </span>
+                        )}
+                        {isAnonymous && (
+                            <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                                Bilgi yok
+                            </span>
+                        )}
+                    </div>
+                    <div className={`text-xs ${isAnonymous ? 'text-gray-500 italic' : 'text-gray-500'}`}>
+                        {guest.nevi || 'Nevi belirtilmemiş'}
+                    </div>
                 </div>
             </div>
+
+            {/* Room Assignment Dropdown (Mobile-friendly alternative) */}
+            {onRoomChange && rooms.length > 0 && (
+                <div className="mt-1">
+                    <select
+                        value={currentRoom || ''}
+                        onChange={(e) => onRoomChange(id, e.target.value || null)}
+                        className="w-full text-xs p-2 rounded border border-gray-200 bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                    >
+                        <option value="">Oda Ata...</option>
+                        {rooms.map(room => {
+                            const info = occupancyInfo[room.name] || { available: room.capacity, capacity: room.capacity };
+                            // Calculate current session's assignments for this room
+                            const currentSessionAssigned = Object.values(assignments).filter(r => r === room.name).length;
+                            const realAvailable = info.available - currentSessionAssigned;
+                            
+                            const isFull = realAvailable <= 0 && currentRoom !== room.name;
+                            
+                            return (
+                                <option key={room._id} value={room.name} disabled={isFull}>
+                                    {room.name} ({realAvailable < 0 ? 0 : realAvailable} yatak boş) {isFull ? '- DOLU' : ''}
+                                </option>
+                            );
+                        })}
+                    </select>
+                </div>
+            )}
         </div>
     );
 };
 
-const DroppableRoom = ({ room, assignedGuests, occupancyInfo, isCollapsed, onToggle }) => {
-    // Local state removed, controlled by parent
-
+const DroppableRoom = ({ room, assignedGuests, occupancyInfo, isCollapsed, onToggle, assignments, onRoomChange, rooms }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: room.name,
         data: { room }
@@ -106,12 +133,18 @@ const DroppableRoom = ({ room, assignedGuests, occupancyInfo, isCollapsed, onTog
                         <BedDouble className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
-                        <div className="font-semibold text-gray-900 text-sm">{room.name}</div>
+                        <div className="font-semibold text-gray-900 text-sm flex items-center gap-2">
+                            {room.name}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${occupancyPercent >= 100 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                %{occupancyPercent}
+                            </span>
+                        </div>
                         <div className="text-xs text-gray-500">
                             {room.capacity} Yatak • {info.available - assignedCount} Boş
                         </div>
                     </div>
                 </div>
+
                 <div className="flex items-center gap-2">
                     <div className="text-lg font-bold text-indigo-600">
                         {assignedCount}
@@ -142,8 +175,6 @@ const DroppableRoom = ({ room, assignedGuests, occupancyInfo, isCollapsed, onTog
                         </div>
                     </div>
 
-
-
                     {/* Assigned Guests */}
                     <div className="space-y-2">
                         {assignedGuests.map((guest, idx) => (
@@ -152,7 +183,11 @@ const DroppableRoom = ({ room, assignedGuests, occupancyInfo, isCollapsed, onTog
                                 id={guest.id}
                                 guest={guest}
                                 index={idx}
-                                sourceRoom={room.name}
+                                rooms={rooms}
+                                occupancyInfo={occupancyInfo}
+                                assignments={assignments}
+                                onRoomChange={onRoomChange}
+                                currentRoom={room.name}
                             />
                         ))}
                         {assignedCount === 0 && (
@@ -195,6 +230,29 @@ const RoomAssignModal = ({ reservation, onClose, onUpdate }) => {
 
     // Guest assignments: { "guest-0": "Ferah", "guest-1": null, ... }
     const [assignments, setAssignments] = useState({});
+
+    // Manual room assignment (for dropdown)
+    const handleManualAssignment = (guestId, roomName) => {
+        if (!roomName) {
+            setAssignments(prev => ({ ...prev, [guestId]: null }));
+            return;
+        }
+
+        const info = occupancyInfo[roomName];
+        if (!info) return;
+
+        const currentAssigned = Object.values(assignments).filter(r => r === roomName).length;
+
+        if (currentAssigned >= info.available) {
+            alert(`${roomName} odası şu an dolu!`);
+            return;
+        }
+
+        setAssignments(prev => ({
+            ...prev,
+            [guestId]: roomName
+        }));
+    };
 
     // Toggle specific room collapse
     const toggleRoom = (roomId, e) => {
@@ -565,6 +623,10 @@ const RoomAssignModal = ({ reservation, onClose, onUpdate }) => {
                                                 id={guest.id}
                                                 guest={guest}
                                                 index={guest.index}
+                                                rooms={rooms}
+                                                occupancyInfo={occupancyInfo}
+                                                assignments={assignments}
+                                                onRoomChange={handleManualAssignment}
                                             />
                                         ))}
                                         {unassignedGuests.length === 0 && (
@@ -589,6 +651,9 @@ const RoomAssignModal = ({ reservation, onClose, onUpdate }) => {
                                                 room={room}
                                                 assignedGuests={getGuestsByRoom(room.name)}
                                                 occupancyInfo={occupancyInfo}
+                                                assignments={assignments}
+                                                onRoomChange={handleManualAssignment}
+                                                rooms={rooms} // missing prop added here
                                                 isCollapsed={!!collapsedRooms[room._id]}
                                                 onToggle={(e) => toggleRoom(room._id, e)}
                                             />

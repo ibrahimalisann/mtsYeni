@@ -3,7 +3,7 @@ import axios from '../axiosConfig';
 import { Settings as SettingsIcon, Save, RefreshCw, Bookmark, Plus, Edit2, Trash2, X } from 'lucide-react';
 
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState('general'); // 'general' | 'presets'
+    const [activeTab, setActiveTab] = useState('general'); // 'general' | 'presets' | 'users'
 
     // --- Settings State ---
     const [settings, setSettings] = useState({ maxCapacity: 9 });
@@ -25,9 +25,21 @@ const Settings = () => {
         city: ''
     });
 
+    // --- Users State ---
+    const [users, setUsers] = useState([]);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [showUserModal, setShowUserModal] = useState(false);
+    const [userFormData, setUserFormData] = useState({
+        username: '',
+        password: '',
+        fullName: '',
+        role: 'user'
+    });
+
     useEffect(() => {
         if (activeTab === 'general') fetchSettings();
         if (activeTab === 'presets') fetchPresets();
+        if (activeTab === 'users') fetchUsers();
     }, [activeTab]);
 
     // --- Settings Logic ---
@@ -143,6 +155,44 @@ const Settings = () => {
         }
     };
 
+    // --- Users Logic ---
+    const fetchUsers = async () => {
+        setUsersLoading(true);
+        try {
+            const response = await axios.get('/auth/users');
+            setUsers(response.data);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        } finally {
+            setUsersLoading(false);
+        }
+    };
+
+    const handleUserDelete = async (userId) => {
+        if (!confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?')) return;
+        try {
+            await axios.delete(`/auth/users/${userId}`);
+            fetchUsers();
+            alert('Kullanıcı silindi.');
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('Silme işlemi başarısız!');
+        }
+    };
+
+    const handleUserSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            await axios.post('/auth/register', userFormData);
+            setShowUserModal(false);
+            setUserFormData({ username: '', password: '', fullName: '', role: 'user' });
+            fetchUsers();
+            alert('Kullanıcı başarıyla oluşturuldu.');
+        } catch (error) {
+            console.error('Error creating user:', error);
+            alert('Kullanıcı oluşturulamadı: ' + (error.response?.data?.message || ''));
+        }
+    };
 
     return (
         <div className="max-w-5xl mx-auto space-y-6">
@@ -177,6 +227,16 @@ const Settings = () => {
                 >
                     Ön Tanımlılar
                     {activeTab === 'presets' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></div>}
+                </button>
+                <button
+                    onClick={() => setActiveTab('users')}
+                    className={`pb-3 px-1 text-sm font-medium transition-colors relative ${activeTab === 'users'
+                        ? 'text-indigo-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                >
+                    Kullanıcılar
+                    {activeTab === 'users' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full"></div>}
                 </button>
             </div>
 
@@ -290,6 +350,143 @@ const Settings = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Content: Users */}
+            {activeTab === 'users' && (
+                <div className="space-y-4">
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => setShowUserModal(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Yeni Kullanıcı Ekle
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı Adı</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ad Soyad</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {usersLoading ? (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500 text-sm">
+                                            Yükleniyor...
+                                        </td>
+                                    </tr>
+                                ) : users.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-8 text-center text-gray-500 text-sm">
+                                            Kullanıcı bulunamadı.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    users.map((user) => (
+                                        <tr key={user._id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.username}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.fullName || '-'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                    {user.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
+                                                <button
+                                                    onClick={() => handleUserDelete(user._id)}
+                                                    className="text-red-600 hover:text-red-900"
+                                                    disabled={user.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1}
+                                                    title={user.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1 ? "Son admin silinemez" : "Kullanıcıyı Sil"}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* User Modal */}
+            {showUserModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                            <h3 className="text-xl font-semibold text-gray-900">Yeni Kullanıcı Ekle</h3>
+                            <button onClick={() => setShowUserModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleUserSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Kullanıcı Adı *</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={userFormData.username}
+                                    onChange={(e) => setUserFormData({ ...userFormData, username: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Şifre *</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={userFormData.password}
+                                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad</label>
+                                <input
+                                    type="text"
+                                    value={userFormData.fullName}
+                                    onChange={(e) => setUserFormData({ ...userFormData, fullName: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                                <select
+                                    value={userFormData.role}
+                                    onChange={(e) => setUserFormData({ ...userFormData, role: e.target.value })}
+                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                >
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-3 pt-4 border-t border-gray-100">
+                                <button
+                                    type="submit"
+                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    Kaydet
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUserModal(false)}
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    İptal
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

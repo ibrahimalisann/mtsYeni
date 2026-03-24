@@ -69,9 +69,7 @@ const NewReservation = () => {
     useEffect(() => {
         const fetchPresets = async () => {
             try {
-                console.log('Fetching presets...');
                 const response = await axios.get('/presets');
-                console.log('Presets fetched:', response.data);
                 setPresets(response.data);
             } catch (error) {
                 console.error('Could not fetch presets:', error);

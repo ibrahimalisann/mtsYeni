@@ -1,4 +1,4 @@
-import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble, Download, Upload, Copy } from 'lucide-react';
+import { X, Phone, Mail, Users, CheckCircle, XCircle, BedDouble, Download, Upload, Copy, Clock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -141,7 +141,6 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
         }
 
         try {
-            console.log('Screenshot başlıyor...');
 
             // Get scrollable content div
             const scrollableDiv = modalContentRef.current.querySelector('.overflow-y-auto');
@@ -175,7 +174,6 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                 backgroundColor: '#ffffff'
             });
 
-            console.log('Screenshot oluşturuldu');
 
             // Restore original overflow
             if (scrollableDiv) {
@@ -190,8 +188,6 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
             const response = await fetch(dataUrl);
             const blob = await response.blob();
 
-            console.log('Blob oluşturuldu, boyut:', blob.size);
-
             try {
                 // Try to copy to clipboard
                 await navigator.clipboard.write([
@@ -199,7 +195,6 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                         'image/png': blob
                     })
                 ]);
-                console.log('Panoya kopyalandı');
                 alert('Ekran görüntüsü panoya kopyalandı!');
             } catch (err) {
                 console.error('Clipboard hatası:', err);
@@ -213,7 +208,6 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                             title: 'Rezervasyon Detayı',
                             text: `${guest.firstName} ${guest.lastName} - Rezervasyon Ekran Görüntüsü`
                         });
-                        console.log('Paylaşıldı');
                         return; // Exit early on successful share
                     } catch (shareErr) {
                         console.error('Paylaşım hatası:', shareErr);
@@ -250,6 +244,16 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                 </div>
 
                 <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1">
+                    {/* Logged/Created At Date */}
+                    {reservation.createdAt && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                            <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                            <span className="font-medium">Talep Oluşturulma Tarihi:</span>
+                            {new Date(reservation.createdAt).toLocaleDateString('tr-TR')}
+                            <span className="text-gray-300">|</span>
+                            {new Date(reservation.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                    )}
 
                     {/* Main Info */}
                     <div className={`p-4 rounded-xl border ${reservation.status === 'pending' ? 'bg-blue-50 border-blue-100' : 'bg-green-50 border-green-100'}`}>

@@ -250,31 +250,30 @@ const Logs = () => {
                                 <div key={log._id} className="p-4 hover:bg-gray-50 transition-colors">
                                     <div className="flex items-start gap-4">
                                         {/* Icon */}
-                                        <div className={`p-2 rounded-lg border ${getActionColor(log.action)}`}>
+                                        <div className={`p-2 rounded-lg border ${getActionColor(log.action)} flex-shrink-0`}>
                                             {getActionIcon(log.action)}
                                         </div>
 
                                         {/* Content */}
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${getActionColor(log.action)}`}>
-                                                        {getActionLabel(log.action)}
-                                                    </span>
-                                                    <p className="text-gray-800 mt-1">{log.description}</p>
-                                                </div>
-                                                <div className="text-right text-sm text-gray-500 whitespace-nowrap">
-                                                    <div className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />
-                                                        {date}
+                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                                                <div className="flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                                                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getActionColor(log.action)}`}>
+                                                            {getActionLabel(log.action)}
+                                                        </span>
+                                                        <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                                                            <Calendar className="w-3 h-3" />
+                                                            {date}
+                                                            <span className="text-indigo-300 mx-0.5">|</span>
+                                                            <Clock className="w-3 h-3" />
+                                                            {time}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-1 mt-0.5">
-                                                        <Clock className="w-3 h-3" />
-                                                        {time}
-                                                    </div>
+                                                    <p className="text-gray-800 text-sm leading-relaxed">{log.description}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                                                 <div className="flex items-center gap-1">
                                                     <User className="w-3 h-3" />
                                                     <span>{log.user?.name || log.user?.email || 'Sistem'}</span>
