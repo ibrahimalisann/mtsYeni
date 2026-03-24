@@ -22,8 +22,8 @@ const logActivity = async ({
         const log = new ActivityLog({
             user: {
                 userId: user?.id || user?._id,
-                email: user?.email || 'Sistem',
-                name: user?.name || user?.email
+                email: user?.email || user?.username || 'Sistem',
+                name: user?.username || user?.name || user?.email || 'Sistem'
             },
             action,
             description,
