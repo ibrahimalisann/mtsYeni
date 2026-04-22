@@ -5,7 +5,7 @@ const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const { sendWhatsAppMessage } = require('../utils/whatsapp');
 const MusafirhaneVisit = require('../models/MusafirhaneVisit');
 
-const DEFAULT_INVITE_BASE_URL = process.env.DAVET_BASE_URL || '';
+const DEFAULT_INVITE_BASE_URL = process.env.MUSAFIR_BASE_URL || '';
 
 function isPrivateOrLocalHostname(hostname) {
     const normalized = String(hostname || '').toLowerCase();
@@ -156,7 +156,9 @@ function getRandomDelayMs(minMs, maxMs) {
 router.get('/', verifyToken, async (req, res) => {
     try {
         const records = await MusafirhaneVisit.find().sort({ createdAt: -1 });
-        res.json(records);
+        // Map _id to id for frontend compatibility
+        const mapped = records.map(r => ({ ...r.toObject(), id: r._id }));
+        res.json(mapped);
     } catch (error) {
         res.status(500).json({ message: 'Müsafirhane ziyareti verileri alınamadı.' });
     }
@@ -251,11 +253,13 @@ router.post('/bulk', verifyToken, requireAdmin, async (req, res) => {
         }));
 
         const inserted = await MusafirhaneVisit.insertMany(prepared);
+        // Map _id to id for frontend compatibility
+        const mapped = inserted.map(r => ({ ...r.toObject(), id: r._id }));
 
         res.status(201).json({
             message: 'Kayıtlar eklendi.',
-            addedCount: inserted.length,
-            records: inserted
+            addedCount: mapped.length,
+            records: mapped
         });
     } catch (error) {
         res.status(500).json({ message: 'Kayıtlar eklenemedi.', error: error.message });
@@ -280,7 +284,9 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
             return res.status(404).json({ message: 'Kayıt bulunamadı.' });
         }
 
-        res.json(record);
+        // Map _id to id for frontend compatibility
+        const mapped = { ...record.toObject(), id: record._id };
+        res.json(mapped);
     } catch (error) {
         res.status(500).json({ message: 'Kayıt güncellenemedi.', error: error.message });
     }
