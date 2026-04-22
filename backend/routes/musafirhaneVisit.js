@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const fs = require('fs').promises;
-const path = require('path');
 const crypto = require('crypto');
 const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const { sendWhatsAppMessage } = require('../utils/whatsapp');
+const MusafirhaneVisit = require('../models/MusafirhaneVisit');
 
-const MUSAFIRHANE_FILE = path.join(__dirname, '../data/musafirhaneVisit.json');
 const DEFAULT_INVITE_BASE_URL = process.env.DAVET_BASE_URL || '';
 
 function isPrivateOrLocalHostname(hostname) {
@@ -35,6 +33,25 @@ function normalizeInviteBaseUrl(baseUrl) {
     return resolvedBase.replace(/\/+$/, '');
 }
 
+function isPublicInviteBaseUrl(baseUrl) {
+    const normalized = normalizeInviteBaseUrl(baseUrl);
+    if (!normalized) return false;
+
+    try {
+        const parsed = new URL(normalized);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+        if (isPrivateOrLocalHostname(parsed.hostname)) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function buildInviteUrl(uuid, inviteBaseUrl) {
+    const resolvedBase = normalizeInviteBaseUrl(inviteBaseUrl || DEFAULT_INVITE_BASE_URL);
+    return resolvedBase ? `${resolvedBase}/${uuid}` : `/${uuid}`;
+}
+
 function ensureMusafirhaneInvitePath(baseUrl) {
     const normalized = normalizeInviteBaseUrl(baseUrl);
     if (!normalized) return '';
@@ -56,25 +73,6 @@ function ensureMusafirhaneInvitePath(baseUrl) {
         }
         return normalized;
     }
-}
-
-function isPublicInviteBaseUrl(baseUrl) {
-    const normalized = normalizeInviteBaseUrl(baseUrl);
-    if (!normalized) return false;
-
-    try {
-        const parsed = new URL(normalized);
-        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-        if (isPrivateOrLocalHostname(parsed.hostname)) return false;
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-function buildInviteUrl(uuid, inviteBaseUrl) {
-    const resolvedBase = normalizeInviteBaseUrl(inviteBaseUrl || DEFAULT_INVITE_BASE_URL);
-    return resolvedBase ? `${resolvedBase}/${uuid}` : `/${uuid}`;
 }
 
 function resolveInviteBaseUrl(inviteBaseUrl, req) {
@@ -125,65 +123,6 @@ function normalizeOkumaCount(value) {
     return current;
 }
 
-function normalizeRecord(record, index) {
-    const now = new Date().toISOString();
-    return {
-        id: record.id || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-        uuid: record.uuid || generateUuid(),
-        siraNo: record.siraNo ?? '',
-        ziyaretTarihi: record.ziyaretTarihi ?? '',
-        bolge: record.bolge ?? '',
-        mintika: record.mintika ?? '',
-        ulke: record.ulke ?? '',
-        ilSehir: record.ilSehir ?? '',
-        gloperKurumKodu: record.gloperKurumKodu ?? '',
-        kurum: record.kurum ?? '',
-        adiSoyadi: record.adiSoyadi ?? '',
-        telefonNumarasi: record.telefonNumarasi ?? '',
-        heyetVazifesi: record.heyetVazifesi ?? '',
-        vazifesi: record.vazifesi ?? '',
-        okuma: record.okuma ?? '',
-        onay: record.onay ?? '',
-        whatsappStatus: record.whatsappStatus || 'pending',
-        whatsappSentAt: record.whatsappSentAt || null,
-        whatsappError: record.whatsappError || null,
-        createdAt: record.createdAt || now,
-        createdBy: record.createdBy || null
-    };
-}
-
-async function readData() {
-    try {
-        const raw = await fs.readFile(MUSAFIRHANE_FILE, 'utf8');
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed.records) ? parsed : { records: [] };
-    } catch (error) {
-        console.error('Error reading musafirhane visit data:', error);
-        return { records: [] };
-    }
-}
-
-async function writeData(data) {
-    try {
-        await fs.writeFile(MUSAFIRHANE_FILE, JSON.stringify(data, null, 2), 'utf8');
-        return true;
-    } catch (error) {
-        console.error('Error writing musafirhane visit data:', error);
-        return false;
-    }
-}
-
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getRandomDelayMs(minMs, maxMs) {
-    const safeMin = Number.isFinite(minMs) ? Math.max(0, Math.floor(minMs)) : 0;
-    const safeMax = Number.isFinite(maxMs) ? Math.max(safeMin, Math.floor(maxMs)) : safeMin;
-    if (safeMax === safeMin) return safeMin;
-    return Math.floor(Math.random() * (safeMax - safeMin + 1)) + safeMin;
-}
-
 function buildDefaultMessage(record) {
     const name = String(record.adiSoyadi || '').trim() || 'Misafirimiz';
     const dateText = formatTurkishDateWithWeekday(record.ziyaretTarihi) || 'Belirtilen Tarih';
@@ -202,85 +141,83 @@ function buildDefaultMessage(record) {
     ].join('\n');
 }
 
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRandomDelayMs(minMs, maxMs) {
+    const safeMin = Number.isFinite(minMs) ? Math.max(0, Math.floor(minMs)) : 0;
+    const safeMax = Number.isFinite(maxMs) ? Math.max(safeMin, Math.floor(maxMs)) : safeMin;
+    if (safeMax === safeMin) return safeMin;
+    return Math.floor(Math.random() * (safeMax - safeMin + 1)) + safeMin;
+}
+
+// Get all records (admin only)
 router.get('/', verifyToken, async (req, res) => {
     try {
-        const data = await readData();
-        res.json(data.records);
+        const records = await MusafirhaneVisit.find().sort({ createdAt: -1 });
+        res.json(records);
     } catch (error) {
         res.status(500).json({ message: 'Müsafirhane ziyareti verileri alınamadı.' });
     }
 });
 
+// Get public invite (by uuid, no auth required)
 router.get('/public/:uuid', async (req, res) => {
     try {
         const { uuid } = req.params;
-        const data = await readData();
-        const index = data.records.findIndex((item) => item.uuid === uuid);
-        const record = index === -1 ? null : data.records[index];
+        const record = await MusafirhaneVisit.findOne({ uuid });
 
         if (!record) {
             return res.status(404).json({ message: 'Davet kaydi bulunamadi.' });
         }
 
         const now = Date.now();
-        const lastReadAt = Date.parse(record.sonOkumaTarihi || '');
-        const hasRecentRead = Number.isFinite(lastReadAt) && now - lastReadAt < 2000;
+        const lastReadAt = record.sonOkumaTarihi ? new Date(record.sonOkumaTarihi).getTime() : 0;
+        const hasRecentRead = lastReadAt > 0 && now - lastReadAt < 2000;
         const nextOkuma = hasRecentRead
             ? normalizeOkumaCount(record.okuma)
             : incrementOkumaCount(record.okuma);
 
-        data.records[index] = {
-            ...record,
-            okuma: nextOkuma,
-            sonOkumaTarihi: hasRecentRead ? record.sonOkumaTarihi : new Date(now).toISOString()
-        };
-
-        const success = await writeData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Okuma bilgisi kaydedilemedi.' });
-        }
+        record.okuma = nextOkuma;
+        record.sonOkumaTarihi = hasRecentRead ? record.sonOkumaTarihi : new Date();
+        await record.save();
 
         res.json({
-            uuid: data.records[index].uuid,
-            adiSoyadi: data.records[index].adiSoyadi || '',
-            ziyaretTarihi: data.records[index].ziyaretTarihi,
-            onay: data.records[index].onay || ''
+            uuid: record.uuid,
+            adiSoyadi: record.adiSoyadi || '',
+            ziyaretTarihi: record.ziyaretTarihi,
+            onay: record.onay || ''
         });
     } catch (error) {
         res.status(500).json({ message: 'Davet bilgisi alinamadi.' });
     }
 });
 
+// Confirm attendance (public, no auth required)
 router.post('/public/:uuid/confirm', async (req, res) => {
     try {
         const { uuid } = req.params;
-        const data = await readData();
-        const index = data.records.findIndex((item) => item.uuid === uuid);
+        const record = await MusafirhaneVisit.findOne({ uuid });
 
-        if (index === -1) {
+        if (!record) {
             return res.status(404).json({ message: 'Davet kaydi bulunamadi.' });
         }
 
-        data.records[index] = {
-            ...data.records[index],
-            onay: '✓',
-            onayTarihi: new Date().toISOString()
-        };
-
-        const success = await writeData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Onay bilgisi kaydedilemedi.' });
-        }
+        record.onay = '✓';
+        record.onayTarihi = new Date();
+        await record.save();
 
         res.json({
             message: 'Katilim onayi alindi.',
-            onay: data.records[index].onay
+            onay: record.onay
         });
     } catch (error) {
         res.status(500).json({ message: 'Onay islemi sirasinda hata olustu.' });
     }
 });
 
+// Add bulk records (admin only)
 router.post('/bulk', verifyToken, requireAdmin, async (req, res) => {
     try {
         const { records } = req.body;
@@ -289,32 +226,83 @@ router.post('/bulk', verifyToken, requireAdmin, async (req, res) => {
             return res.status(400).json({ message: 'Eklenecek kayıt bulunamadı.' });
         }
 
-        const data = await readData();
-        const prepared = records.map((record, index) => normalizeRecord({
-            ...record,
+        const now = new Date();
+        const prepared = records.map((record) => ({
+            siraNo: record.siraNo ?? '',
+            uuid: record.uuid || generateUuid(),
+            ziyaretTarihi: record.ziyaretTarihi ?? '',
+            bolge: record.bolge ?? '',
+            mintika: record.mintika ?? '',
+            ulke: record.ulke ?? '',
+            ilSehir: record.ilSehir ?? '',
+            gloperKurumKodu: record.gloperKurumKodu ?? '',
+            kurum: record.kurum ?? '',
+            adiSoyadi: record.adiSoyadi ?? '',
+            telefonNumarasi: record.telefonNumarasi ?? '',
+            heyetVazifesi: record.heyetVazifesi ?? '',
+            vazifesi: record.vazifesi ?? '',
+            okuma: record.okuma ?? 0,
+            onay: record.onay ?? '',
             whatsappStatus: 'pending',
             whatsappSentAt: null,
             whatsappError: null,
+            createdAt: now,
             createdBy: req.user?.username || 'unknown'
-        }, index));
+        }));
 
-        data.records.push(...prepared);
-
-        const success = await writeData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Kayıtlar kaydedilemedi.' });
-        }
+        const inserted = await MusafirhaneVisit.insertMany(prepared);
 
         res.status(201).json({
             message: 'Kayıtlar eklendi.',
-            addedCount: prepared.length,
-            records: prepared
+            addedCount: inserted.length,
+            records: inserted
         });
     } catch (error) {
         res.status(500).json({ message: 'Kayıtlar eklenemedi.', error: error.message });
     }
 });
 
+// Update record (admin only)
+router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const record = await MusafirhaneVisit.findByIdAndUpdate(
+            id,
+            {
+                ...req.body,
+                updatedAt: new Date(),
+                updatedBy: req.user?.username || 'unknown'
+            },
+            { new: true }
+        );
+
+        if (!record) {
+            return res.status(404).json({ message: 'Kayıt bulunamadı.' });
+        }
+
+        res.json(record);
+    } catch (error) {
+        res.status(500).json({ message: 'Kayıt güncellenemedi.', error: error.message });
+    }
+});
+
+// Delete record (admin only)
+router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const record = await MusafirhaneVisit.findByIdAndDelete(id);
+
+        if (!record) {
+            return res.status(404).json({ message: 'Kayıt bulunamadı.' });
+        }
+
+        res.json({ message: 'Kayıt silindi.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Kayıt silinemedi.', error: error.message });
+    }
+});
+
+// Send WhatsApp invites (admin only)
 router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
     try {
         const { recordIds, message, waToolboxUrl, inviteBaseUrl } = req.body;
@@ -322,11 +310,12 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
         const minQueueDelayMs = Number.parseInt(process.env.WHATSAPP_QUEUE_MIN_DELAY_MS || '15000', 10);
         const maxQueueDelayMs = Number.parseInt(process.env.WHATSAPP_QUEUE_MAX_DELAY_MS || '30000', 10);
 
-        const data = await readData();
-        const hasFilter = Array.isArray(recordIds) && recordIds.length > 0;
-        const targetRecords = hasFilter
-            ? data.records.filter((record) => recordIds.includes(record.id))
-            : data.records;
+        let query = {};
+        if (Array.isArray(recordIds) && recordIds.length > 0) {
+            query = { _id: { $in: recordIds } };
+        }
+
+        const targetRecords = await MusafirhaneVisit.find(query);
 
         if (targetRecords.length === 0) {
             return res.status(400).json({ message: 'Mesaj gönderilecek kayıt bulunamadı.' });
@@ -340,6 +329,7 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
             if (!record.telefonNumarasi) {
                 record.whatsappStatus = 'failed';
                 record.whatsappError = 'Telefon numarası yok.';
+                await record.save();
                 failed += 1;
                 continue;
             }
@@ -355,12 +345,12 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
                     .replaceAll('{{ziyaretTarihi}}', formatTurkishDateWithWeekday(record.ziyaretTarihi))
                     .replaceAll('{{uuid}}', record.uuid)
                     .replaceAll('{{davetLinki}}', buildInviteUrl(record.uuid, resolvedInviteBaseUrl))
-                : buildDefaultMessage({ ...record, inviteBaseUrl: resolvedInviteBaseUrl });
+                : buildDefaultMessage({ ...record.toObject(), inviteBaseUrl: resolvedInviteBaseUrl });
 
             const ok = await sendWhatsAppMessage(record.telefonNumarasi, resolvedMessage, { waToolboxUrl });
             if (ok) {
                 record.whatsappStatus = 'sent';
-                record.whatsappSentAt = new Date().toISOString();
+                record.whatsappSentAt = new Date();
                 record.whatsappError = null;
                 sent += 1;
             } else {
@@ -369,12 +359,8 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
                 failed += 1;
             }
 
+            await record.save();
             queuedSendCount += 1;
-        }
-
-        const success = await writeData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'WhatsApp sonuçları kaydedilemedi.' });
         }
 
         res.json({
@@ -389,60 +375,6 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: 'WhatsApp gönderimi sırasında hata oluştu.', error: error.message });
-    }
-});
-
-router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const data = await readData();
-        const index = data.records.findIndex((record) => record.id === id);
-
-        if (index === -1) {
-            return res.status(404).json({ message: 'Kayıt bulunamadı.' });
-        }
-
-        const updated = normalizeRecord({
-            ...data.records[index],
-            ...req.body,
-            id,
-            updatedAt: new Date().toISOString(),
-            updatedBy: req.user?.username || 'unknown'
-        }, index);
-
-        data.records[index] = updated;
-
-        const success = await writeData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Kayıt güncellenemedi.' });
-        }
-
-        res.json(updated);
-    } catch (error) {
-        res.status(500).json({ message: 'Kayıt güncellenemedi.', error: error.message });
-    }
-});
-
-router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const data = await readData();
-        const index = data.records.findIndex((record) => record.id === id);
-
-        if (index === -1) {
-            return res.status(404).json({ message: 'Kayıt bulunamadı.' });
-        }
-
-        data.records.splice(index, 1);
-
-        const success = await writeData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Kayıt silinemedi.' });
-        }
-
-        res.json({ message: 'Kayıt silindi.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Kayıt silinemedi.', error: error.message });
     }
 });
 
