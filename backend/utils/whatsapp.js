@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { logActivity } = require('./logger');
 
-const WA_TOOLBOX_URL = 'https://api.watoolbox.com/webhooks/2KY2MDY3A';
+const WA_TOOLBOX_URL = process.env.WA_TOOLBOX_URL || '';
 
 /**
  * Clean phone number to format required by WA Toolbox (e.g., 905551234567)
@@ -18,9 +18,16 @@ const formatPhoneNumber = (phone) => {
  * Send WhatsApp text message via WA Toolbox
  * @param {string} phone - Recipient phone number
  * @param {string} message - Text content
+ * @param {{ waToolboxUrl?: string }} options
  */
-const sendWhatsAppMessage = async (phone, message) => {
+const sendWhatsAppMessage = async (phone, message, options = {}) => {
     try {
+        const url = options.waToolboxUrl || WA_TOOLBOX_URL;
+        if (!url) {
+            console.warn('WhatsApp sending skipped: WA_TOOLBOX_URL is not configured');
+            return false;
+        }
+
         const formattedPhone = formatPhoneNumber(phone);
         if (!formattedPhone) {
             console.warn('WhatsApp sending failed: Invalid phone number', phone);
@@ -40,7 +47,7 @@ const sendWhatsAppMessage = async (phone, message) => {
             content: message
         };
 
-        const response = await axios.post(WA_TOOLBOX_URL, payload);
+        const response = await axios.post(url, payload);
 
         console.log(`WhatsApp sent to ${formattedPhone}:`, response.data);
         return true;

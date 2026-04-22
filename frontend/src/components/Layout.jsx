@@ -2,7 +2,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Home, Calendar, Users, UserPlus, Settings, Menu, X, BedDouble, FileText } from 'lucide-react';
 import Navbar from './Navbar';
-import { useState } from 'react';
 
 const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
     const location = useLocation();
@@ -13,8 +12,11 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         { name: 'Dashboard', path: '/dashboard', icon: Home },
         { name: 'Rezervasyonlar', path: '/reservations', icon: Calendar },
         { name: 'Odalar', path: '/rooms', icon: BedDouble },
-        { name: 'Misafirler', path: '/guests', icon: Users },
+        { name: 'Yatılı Misafirler', path: '/guests', icon: Users },
         { name: 'Yeni Rezervasyon', path: '/reservations/new', icon: UserPlus },
+        { name: 'Kabul Programı', path: '/acceptance-program', icon: FileText },
+        { name: 'Müsafirhane Ziyareti', path: '/musafirhane-ziyareti', icon: FileText },
+        { name: 'Misafir Listesi', path: '/misafir-listesi', icon: Users },
         { name: 'Loglar', path: '/admin/logs', icon: FileText },
         { name: 'Ayarlar', path: '/admin/settings', icon: Settings },
     ];
@@ -50,7 +52,7 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         );
     }
 
-    const NavContent = () => (
+    const renderNavContent = () => (
         <>
             <div className="h-16 flex items-center px-6 border-b border-gray-200 justify-between md:justify-start">
                 <h1 className="text-xl font-bold text-gray-900">🏨 MTS Admin</h1>
@@ -69,18 +71,25 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
                     const Icon = item.icon;
 
                     return (
-                        <Link
-                            key={item.name}
-                            to={item.path}
-                            onClick={() => setIsSidebarOpen(false)} // Close on mobile navigation
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
-                                ? 'bg-blue-50 text-blue-700 font-medium'
-                                : 'text-gray-700 hover:bg-gray-50'
-                                }`}
-                        >
-                            <Icon className="w-5 h-5" />
-                            <span>{item.name}</span>
-                        </Link>
+                        <div key={item.name}>
+                            {item.path === '/acceptance-program' && (
+                                <div className="my-2 border-t border-gray-200" />
+                            )}
+                            <Link
+                                to={item.path}
+                                onClick={() => setIsSidebarOpen(false)} // Close on mobile navigation
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                                    ? 'bg-blue-50 text-blue-700 font-medium'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                    }`}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span>{item.name}</span>
+                            </Link>
+                            {item.path === '/misafir-listesi' && (
+                                <div className="my-2 border-t border-gray-200" />
+                            )}
+                        </div>
                     );
                 })}
             </nav>
@@ -97,7 +106,7 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
         <div className="flex h-screen bg-gray-50 overflow-hidden">
             {/* Desktop Sidebar */}
             <div className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col h-full">
-                <NavContent />
+                {renderNavContent()}
             </div>
 
             {/* Mobile Sidebar Overlay */}
@@ -111,7 +120,7 @@ const Layout = ({ children, isSidebarOpen, setIsSidebarOpen }) => {
 
                     {/* Drawer */}
                     <div className="relative w-64 max-w-xs bg-white h-full shadow-xl flex flex-col transform transition-transform duration-300 ease-in-out">
-                        <NavContent />
+                        {renderNavContent()}
                     </div>
                 </div>
             )}

@@ -32,6 +32,9 @@ const presetRoutes = require('./routes/presets');
 const settingsRoutes = require('./routes/settings');
 const roomRoutes = require('./routes/rooms');
 const logRoutes = require('./routes/logs');
+const acceptanceProgramRoutes = require('./routes/acceptanceProgram');
+const musafirhaneVisitRoutes = require('./routes/musafirhaneVisit');
+const misafirListesiRoutes = require('./routes/misafirListesi');
 
 app.use('/api/guests', guestRoutes);
 app.use('/api/reservations', reservationRoutes);
@@ -41,6 +44,9 @@ app.use('/api/presets', presetRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/acceptance-program', acceptanceProgramRoutes);
+app.use('/api/musafirhane-ziyareti', musafirhaneVisitRoutes);
+app.use('/api/misafir-listesi', misafirListesiRoutes);
 
 app.get('/', (req, res) => {
     res.send('Guest Tracking System API is running');
