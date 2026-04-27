@@ -151,16 +151,43 @@ router.post('/', (req, res, next) => {
             try { assignedRooms = JSON.parse(assignedRooms); } catch (e) { }
         }
 
+        // Check availability BEFORE creating reservation
+        const start = new Date(checkInDate);
+        const end = new Date(checkOutDate);
+
+        // Find overlapping reservations (excluding cancelled)
+        const overlappingReservations = await Reservation.find({
+            status: { $ne: 'cancelled' },
+            checkInDate: { $lt: end },
+            checkOutDate: { $gt: start }
+        });
+
+        // Calculate used capacity
+        const totalGuests = overlappingReservations.reduce((sum, r) => sum + r.guestCount, 0);
+        const MAX_CAPACITY = 9;
+        const available = Math.max(0, MAX_CAPACITY - totalGuests);
+        const requestedGuests = parseInt(guestCount) || 1;
+
+        // Determine initial status based on availability
+        let initialStatus = 'pending';
+        let rejectionReason = '';
+
+        if (available < requestedGuests) {
+            initialStatus = 'cancelled';
+            rejectionReason = `Yer yetersiz. Talep: ${requestedGuests}, Mevcut: ${available}`;
+        }
+
         const reservation = new Reservation({
             guest: guestId,
-            guestCount: guestCount || 1,
+            guestCount: requestedGuests,
             checkInDate,
             checkOutDate,
             notes,
             additionalGuests,
             assignedRooms: assignedRooms || [],
             registrar,
-            status: 'pending',
+            status: initialStatus,
+            rejectionReason: rejectionReason,
             ek1FilePath: req.file ? req.file.path : undefined // Save file path if uploaded
         });
 
@@ -270,7 +297,18 @@ Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
             console.log(`Reservation created with WhatsApp status: ${whatsappStatus}`);
         }
 
-        res.status(201).json(populatedRes);
+        // Return response with availability info
+        res.status(201).json({
+            ...populatedRes.toObject(),
+            availability: {
+                available,
+                requested: requestedGuests,
+                isAvailable: available >= requestedGuests,
+                message: available >= requestedGuests 
+                    ? `Müsaitlik var. (${available} kişilik yer kaldı)` 
+                    : `Yer yetersiz! Talep: ${requestedGuests}, Mevcut: ${available}`
+            }
+        });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }
@@ -569,6 +607,62 @@ router.patch('/:id/restore', verifyToken, async (req, res) => {
         });
 
         res.json({ message: 'Rezervasyon başarıyla geri yüklendi', reservation });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// PATCH update status (protected - admin only) - Quick status change
+router.patch('/:id/status', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        const { status, rejectionReason } = req.body;
+
+        // Validate status - only these 5 are valid according to the model
+        const validStatuses = ['pending', 'confirmed', 'active', 'completed', 'cancelled'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({ message: 'Geçersiz durum. Geçerli durumlar: ' + validStatuses.join(', ') });
+        }
+
+        const reservation = await Reservation.findById(req.params.id).populate('guest');
+        if (!reservation) {
+            return res.status(404).json({ message: 'Rezervasyon bulunamadı' });
+        }
+
+        const previousStatus = reservation.status;
+        const guestName = reservation.guest
+            ? `${reservation.guest.firstName} ${reservation.guest.lastName}`
+            : 'Bilinmeyen Misafir';
+
+        reservation.status = status;
+        if (rejectionReason) {
+            reservation.rejectionReason = rejectionReason;
+        }
+        await reservation.save();
+
+        // Log the status change
+        let action = 'reservation_status_changed';
+        let description = `Rezervasyon durumu değiştirildi: ${guestName} (${previousStatus} → ${status})`;
+
+        await logActivity({
+            user: req.user,
+            action: action,
+            description: description,
+            entity: {
+                type: 'reservation',
+                id: reservation._id,
+                name: guestName
+            },
+            details: {
+                previousStatus,
+                newStatus: status,
+                guestCount: reservation.guestCount,
+                checkInDate: reservation.checkInDate,
+                checkOutDate: reservation.checkOutDate
+            },
+            ipAddress: getClientIp(req)
+        });
+
+        res.json({ message: 'Durum başarıyla güncellendi', reservation });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

@@ -12,6 +12,7 @@ const ReservationList = () => {
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [editingReservation, setEditingReservation] = useState(null);
     const [archivingReservation, setArchivingReservation] = useState(null);
+    const [statusChangeReservation, setStatusChangeReservation] = useState(null);
     const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
     const [activeTab, setActiveTab] = useState('active'); // 'active' or 'archived'
 
@@ -80,6 +81,51 @@ const ReservationList = () => {
         } catch (error) {
             console.error('Error restoring reservation:', error);
             alert('Geri yükleme işlemi sırasında bir hata oluştu.');
+        }
+    };
+
+    const handleStatusChange = async () => {
+        if (!statusChangeReservation) return;
+
+        const newStatus = statusChangeReservation.newStatus;
+        try {
+            const payload = { status: newStatus };
+            if (newStatus === 'cancelled') {
+                payload.rejectionReason = statusChangeReservation.rejectionReason || '';
+            }
+
+            await axios.patch(`/reservations/${statusChangeReservation._id}/status`, payload);
+            
+            alert(`Durum başarıyla "${getStatusLabel(newStatus)}" olarak değiştirildi!`);
+            setStatusChangeReservation(null);
+            
+            // Refresh the list to get updated data
+            fetchReservations();
+        } catch (error) {
+            console.error('Error changing status:', error);
+            alert('Durum değiştirme işlemi sırasında bir hata oluştu.');
+        }
+    };
+
+    const getStatusLabel = (status) => {
+        switch (status) {
+            case 'pending': return 'Müsaitlik Var';
+            case 'confirmed': return 'Onaylandı';
+            case 'cancelled': return 'İptal';
+            case 'active': return 'Konaklıyor';
+            case 'completed': return 'Tamamlandı';
+            default: return status;
+        }
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'pending': return 'bg-orange-100 text-orange-700';
+            case 'confirmed': return 'bg-teal-100 text-teal-700';
+            case 'active': return 'bg-green-100 text-green-700';
+            case 'completed': return 'bg-gray-100 text-gray-700';
+            case 'cancelled': return 'bg-red-100 text-red-700';
+            default: return 'bg-gray-100 text-gray-700';
         }
     };
 
@@ -170,19 +216,21 @@ const ReservationList = () => {
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${res.status === 'pending' ? 'bg-orange-100 text-orange-700' :
-                                                res.status === 'confirmed' ? 'bg-teal-100 text-teal-700' :
-                                                    res.status === 'upcoming' ? 'bg-yellow-100 text-yellow-700' :
+                                            <button
+                                                onClick={() => setStatusChangeReservation({ ...res, newStatus: res.status })}
+                                                className={`inline-block px-2 py-1 rounded-full text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity ${res.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                                                    res.status === 'confirmed' ? 'bg-teal-100 text-teal-700' :
                                                         res.status === 'active' ? 'bg-green-100 text-green-700' :
                                                             res.status === 'completed' ? 'bg-gray-100 text-gray-700' :
                                                                 'bg-red-100 text-red-700'
-                                                }`}>
+                                                }`}
+                                                title="Durumu değiştirmek için tıklayın"
+                                            >
                                                 {res.status === 'pending' ? 'Müsaitlik Var' :
                                                     res.status === 'confirmed' ? 'Onaylandı' :
-                                                        res.status === 'upcoming' ? 'Gelecek' :
-                                                            res.status === 'active' ? 'Konaklıyor' :
-                                                                res.status === 'completed' ? 'Tamamlandı' : 'İptal'}
-                                            </span>
+                                                        res.status === 'active' ? 'Konaklıyor' :
+                                                            res.status === 'completed' ? 'Tamamlandı' : 'İptal'}
+                                            </button>
                                         </td>
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
@@ -243,19 +291,21 @@ const ReservationList = () => {
                                             <div className="font-medium text-gray-900">{guest.firstName} {guest.lastName}</div>
                                             <div className="text-xs text-gray-400">{guest.phone}</div>
                                         </div>
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${res.status === 'pending' ? 'bg-orange-100 text-orange-700' :
-                                            res.status === 'confirmed' ? 'bg-teal-100 text-teal-700' :
-                                                res.status === 'upcoming' ? 'bg-yellow-100 text-yellow-700' :
+                                        <button
+                                            onClick={() => setStatusChangeReservation({ ...res, newStatus: res.status })}
+                                            className={`inline-block px-2 py-1 rounded-full text-xs font-semibold cursor-pointer hover:opacity-80 transition-opacity ${res.status === 'pending' ? 'bg-orange-100 text-orange-700' :
+                                                res.status === 'confirmed' ? 'bg-teal-100 text-teal-700' :
                                                     res.status === 'active' ? 'bg-green-100 text-green-700' :
                                                         res.status === 'completed' ? 'bg-gray-100 text-gray-700' :
                                                             'bg-red-100 text-red-700'
-                                            }`}>
+                                            }`}
+                                            title="Durumu değiştirmek için tıklayın"
+                                        >
                                             {res.status === 'pending' ? 'Müsaitlik Var' :
                                                 res.status === 'confirmed' ? 'Onaylandı' :
-                                                    res.status === 'upcoming' ? 'Gelecek' :
-                                                        res.status === 'active' ? 'Konaklıyor' :
-                                                            res.status === 'completed' ? 'Tamamlandı' : 'İptal'}
-                                        </span>
+                                                    res.status === 'active' ? 'Konaklıyor' :
+                                                        res.status === 'completed' ? 'Tamamlandı' : 'İptal'}
+                                        </button>
                                     </div>
 
                                     <div className="flex items-center gap-4 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
@@ -356,6 +406,64 @@ const ReservationList = () => {
                         onConfirm={handleArchive}
                         onClose={() => setArchivingReservation(null)}
                     />
+                )
+            }
+
+            {/* Status Change Modal */}
+            {
+                statusChangeReservation && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+                            <h3 className="text-lg font-bold text-gray-800 mb-4">Durum Değiştir</h3>
+                            
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-600 mb-2">
+                                    Yeni Durum
+                                </label>
+                                <select
+                                    value={statusChangeReservation.newStatus}
+                                    onChange={(e) => setStatusChangeReservation({ ...statusChangeReservation, newStatus: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="pending">Müsaitlik Var</option>
+                                    <option value="confirmed">Onaylandı</option>
+                                    <option value="active">Konaklıyor</option>
+                                    <option value="completed">Tamamlandı</option>
+                                    <option value="cancelled">İptal</option>
+                                </select>
+                            </div>
+
+                            {statusChangeReservation.newStatus === 'cancelled' && (
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                                        İptal Sebebi (Opsiyonel)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={statusChangeReservation.rejectionReason || ''}
+                                        onChange={(e) => setStatusChangeReservation({ ...statusChangeReservation, rejectionReason: e.target.value })}
+                                        placeholder="İptal sebebini giriniz..."
+                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => setStatusChangeReservation(null)}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    İptal
+                                </button>
+                                <button
+                                    onClick={handleStatusChange}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    Değiştir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )
             }
         </div >

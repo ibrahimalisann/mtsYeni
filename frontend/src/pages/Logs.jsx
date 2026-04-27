@@ -113,11 +113,20 @@ const Logs = () => {
             'reservation_activated': 'Giriş Yapıldı',
             'reservation_completed': 'Çıkış Yapıldı',
             'reservation_deleted': 'Rezervasyon Silindi',
+            'reservation_status_changed': 'Durum Değiştirildi',
+            'reservation_archived': 'Rezervasyon Arşivlendi',
+            'reservation_restored': 'Rezervasyon Geri Yüklendi',
             'room_assigned': 'Oda Atandı',
             'room_created': 'Oda Oluşturuldu',
             'room_updated': 'Oda Güncellendi',
             'room_deleted': 'Oda Silindi',
-            'settings_updated': 'Ayarlar Güncellendi'
+            'settings_updated': 'Ayarlar Güncellendi',
+            'acceptance_created': 'Kabul Programı Oluşturuldu',
+            'acceptance_updated': 'Kabul Programı Güncellendi',
+            'acceptance_deleted': 'Kabul Programı Silindi',
+            'musafirhane_created': 'Misafirhane Ziyareti Oluşturuldu',
+            'musafirhane_updated': 'Misafirhane Ziyareti Güncellendi',
+            'musafirhane_deleted': 'Misafirhane Ziyareti Silindi'
         };
         return labels[action] || action;
     };
@@ -135,11 +144,17 @@ const Logs = () => {
         { value: 'reservation_created', label: 'Rezervasyon Oluşturma' },
         { value: 'reservation_confirmed', label: 'Rezervasyon Onaylama' },
         { value: 'reservation_cancelled', label: 'Rezervasyon İptal' },
+        { value: 'reservation_status_changed', label: 'Durum Değişikliği' },
         { value: 'reservation_activated', label: 'Giriş' },
         { value: 'reservation_completed', label: 'Çıkış' },
+        { value: 'reservation_archived', label: 'Arşivleme' },
+        { value: 'reservation_restored', label: 'Geri Yükleme' },
         { value: 'room_assigned', label: 'Oda Atama' },
         { value: 'room_created', label: 'Oda Oluşturma' },
-        { value: 'room_deleted', label: 'Oda Silme' }
+        { value: 'room_deleted', label: 'Oda Silme' },
+        { value: 'acceptance_created', label: 'Kabul Programı' },
+        { value: 'musafirhane_created', label: 'Misafirhane Ziyareti' },
+        { value: 'settings_updated', label: 'Ayarlar' }
     ];
 
     return (
@@ -276,12 +291,17 @@ const Logs = () => {
                                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                                                 <div className="flex items-center gap-1">
                                                     <User className="w-3 h-3" />
-                                                    <span>{log.user?.name || log.user?.email || 'Sistem'}</span>
+                                                    <span className="font-medium text-gray-700">
+                                                        {log.user?.name || log.user?.email || 'Sistem'}
+                                                    </span>
+                                                    {log.user?.email && (
+                                                        <span className="text-gray-400">({log.user.email})</span>
+                                                    )}
                                                 </div>
                                                 {log.entity?.name && (
                                                     <div className="flex items-center gap-1">
                                                         <span className="text-gray-400">•</span>
-                                                        <span>{log.entity.type === 'reservation' ? 'Misafir:' : 'Oda:'} {log.entity.name}</span>
+                                                        <span>{log.entity.type === 'reservation' ? 'Misafir:' : log.entity.type === 'room' ? 'Oda:' : 'Kayıt:'} {log.entity.name}</span>
                                                     </div>
                                                 )}
                                             </div>

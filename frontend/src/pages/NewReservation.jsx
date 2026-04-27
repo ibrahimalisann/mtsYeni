@@ -12,7 +12,7 @@ const NewReservation = () => {
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('individual'); // 'individual' or 'group'
     const [showGuestList, setShowGuestList] = useState(false);
-    const [detectedCountry, setDetectedCountry] = useState('TR'); // Default to Turkey
+    const [detectedCountry] = useState('TR'); // Default to Turkey
     const [presets, setPresets] = useState([]);
 
     // Validation states
@@ -58,7 +58,7 @@ const NewReservation = () => {
                 // const response = await fetch('https://ipapi.co/json/');
                 // const data = await response.json();
                 // if (data.country_code) setDetectedCountry(data.country_code);
-            } catch (error) {
+            } catch {
                 console.log('Country detection skipped');
             }
         };
@@ -214,6 +214,18 @@ const NewReservation = () => {
         e.preventDefault();
         setLoading(true);
         try {
+            // Validate dates: checkOut must be after checkIn
+            if (formData.checkInDate && formData.checkOutDate) {
+                const checkIn = new Date(formData.checkInDate);
+                const checkOut = new Date(formData.checkOutDate);
+                
+                if (checkOut <= checkIn) {
+                    alert('Çıkış tarihi, giriş tarihinden sonra olmalıdır!');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             // 1. Create Guest (or Group Leader)
             const guestRes = await axios.post('/guests', {
                 firstName: formData.firstName,
@@ -249,11 +261,21 @@ const NewReservation = () => {
                 submissionData.append('ek1File', ek1File);
             }
 
-            await axios.post('/reservations', submissionData, {
+            const response = await axios.post('/reservations', submissionData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            alert('Rezervasyon başarıyla oluşturuldu!');
+            // Check availability result from response
+            const availabilityInfo = response.data?.availability;
+            if (availabilityInfo) {
+                if (availabilityInfo.isAvailable) {
+                    alert(`Rezervasyon oluşturuldu!\n\n${availabilityInfo.message}\n\nDurum: Müsaitlik Var (Onay Bekliyor)`);
+                } else {
+                    alert(`Rezervasyon oluşturuldu ancak müsaitlik yetersiz!\n\n${availabilityInfo.message}\n\nDurum: İptal (Otomatik)`);
+                }
+            } else {
+                alert('Rezervasyon başarıyla oluşturuldu!');
+            }
             navigate('/');
         } catch (error) {
             console.error('Error creating reservation:', error);
@@ -519,11 +541,27 @@ const NewReservation = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Giriş Tarihi</label>
-                            <input required type="date" name="checkInDate" value={formData.checkInDate} onChange={handleChange} className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" />
+                            <input 
+                                required 
+                                type="date" 
+                                name="checkInDate" 
+                                value={formData.checkInDate} 
+                                onChange={handleChange} 
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                            />
                         </div>
                         <div>
                             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Çıkış Tarihi</label>
-                            <input required type="date" name="checkOutDate" value={formData.checkOutDate} onChange={handleChange} className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" />
+                            <input 
+                                required 
+                                type="date" 
+                                name="checkOutDate" 
+                                value={formData.checkOutDate} 
+                                onChange={handleChange}
+                                min={formData.checkInDate || new Date().toISOString().split('T')[0]}
+                                className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none" 
+                            />
                         </div>
                     </div>
 

@@ -4,16 +4,27 @@ import { createPortal } from 'react-dom';
 import axios from '../axiosConfig';
 
 const EditReservationModal = ({ reservation, onClose, onUpdate }) => {
-    if (!reservation) return null;
-
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        guestCount: reservation.guestCount || 1,
-        checkInDate: reservation.checkInDate ? new Date(reservation.checkInDate).toISOString().split('T')[0] : '',
-        checkOutDate: reservation.checkOutDate ? new Date(reservation.checkOutDate).toISOString().split('T')[0] : '',
-        notes: reservation.notes || '',
-        additionalGuests: reservation.additionalGuests || []
+        guestCount: 1,
+        checkInDate: '',
+        checkOutDate: '',
+        notes: '',
+        additionalGuests: []
     });
+
+    useEffect(() => {
+        if (!reservation) return;
+        setFormData({
+            guestCount: reservation.guestCount || 1,
+            checkInDate: reservation.checkInDate ? new Date(reservation.checkInDate).toISOString().split('T')[0] : '',
+            checkOutDate: reservation.checkOutDate ? new Date(reservation.checkOutDate).toISOString().split('T')[0] : '',
+            notes: reservation.notes || '',
+            additionalGuests: reservation.additionalGuests || []
+        });
+    }, [reservation]);
+
+    if (!reservation) return null;
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });

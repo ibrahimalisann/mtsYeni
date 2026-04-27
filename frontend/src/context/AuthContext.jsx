@@ -8,19 +8,10 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
 
-    // Verify token on mount
-    useEffect(() => {
-        if (token) {
-            verifyToken();
-        } else {
-            setLoading(false);
-        }
-    }, []);
-
-    const verifyToken = async () => {
+    const verifyToken = async (authToken) => {
         try {
             const res = await axios.get('/auth/verify', {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${authToken}` }
             });
             setUser(res.data.user);
         } catch (error) {
@@ -30,6 +21,15 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         }
     };
+
+    // Verify token whenever token changes.
+    useEffect(() => {
+        if (token) {
+            verifyToken(token);
+        } else {
+            setLoading(false);
+        }
+    }, [token]);
 
     const login = async (username, password) => {
         try {
@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {

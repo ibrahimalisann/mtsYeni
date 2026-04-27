@@ -162,6 +162,9 @@ function normalizeRecord(record, index) {
         whatsappStatus: record.whatsappStatus || 'pending',
         whatsappSentAt: record.whatsappSentAt || null,
         whatsappError: record.whatsappError || null,
+        ofisteDurumu: record.ofisteDurumu || 'bilinmiyor',
+        ofisteDurumuGuncellemeTarihi: record.ofisteDurumuGuncellemeTarihi || null,
+        ofisteDurumuGuncelleyen: record.ofisteDurumuGuncelleyen || null,
         createdAt: record.createdAt || now,
         createdBy: record.createdBy || null
     };
@@ -433,6 +436,54 @@ router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
         res.json({ message: 'Kayıt silindi.' });
     } catch (error) {
         res.status(500).json({ message: 'Kayıt silinemedi.', error: error.message });
+    }
+});
+
+// PATCH bulk update office status
+router.patch('/bulk-status', verifyToken, requireAdmin, async (req, res) => {
+    try {
+        console.log('Bulk status update request received:', req.body);
+        console.log('User:', req.user);
+        
+        const { recordIds, ofisteDurumu } = req.body;
+
+        if (!recordIds || !Array.isArray(recordIds) || recordIds.length === 0) {
+            return res.status(400).json({ message: 'Kayıt ID\'leri gereklidir.' });
+        }
+
+        const validStatuses = ['ofiste', 'ofiste-degil', 'bilinmiyor'];
+        if (!ofisteDurumu || !validStatuses.includes(ofisteDurumu)) {
+            return res.status(400).json({ message: 'Geçersiz ofiste durumu. Geçerli değerler: ' + validStatuses.join(', ') });
+        }
+
+        const data = await readAcceptanceData();
+        let updatedCount = 0;
+
+        for (const recordId of recordIds) {
+            const index = data.records.findIndex((record) => record.id === recordId);
+            if (index !== -1) {
+                data.records[index].ofisteDurumu = ofisteDurumu;
+                data.records[index].ofisteDurumuGuncellemeTarihi = new Date().toISOString();
+                data.records[index].ofisteDurumuGuncelleyen = req.user?.username || 'unknown';
+                updatedCount++;
+            }
+        }
+
+        const success = await writeAcceptanceData(data);
+        if (!success) {
+            return res.status(500).json({ message: 'Durum güncellenemedi.' });
+        }
+
+        console.log(`Updated ${updatedCount} records with status: ${ofisteDurumu}`);
+        
+        res.json({ 
+            message: `${updatedCount} kaydın ofiste durumu güncellendi.`,
+            updatedCount,
+            ofisteDurumu
+        });
+    } catch (error) {
+        console.error('Bulk status update error:', error);
+        res.status(500).json({ message: 'Toplu durum güncellenemedi.', error: error.message });
     }
 });
 

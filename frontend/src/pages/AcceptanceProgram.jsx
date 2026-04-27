@@ -13,7 +13,8 @@ const COLUMNS = [
     { key: 'telefon', label: 'CEP TELEFONU (+90 xxx xxx xx xx)' },
     { key: 'uuid', label: 'UUID' },
     { key: 'okuma', label: 'OKUMA' },
-    { key: 'onay', label: 'ONAY' }
+    { key: 'onay', label: 'ONAY' },
+    { key: 'ofisteDurumu', label: 'DURUM' }
 ];
 
 const EDIT_FIELDS = [
@@ -26,7 +27,8 @@ const EDIT_FIELDS = [
     { key: 'vazife', label: 'VAZIFESI' },
     { key: 'telefon', label: 'CEP TELEFONU (+90 xxx xxx xx xx)' },
     { key: 'okuma', label: 'OKUMA' },
-    { key: 'onay', label: 'ONAY' }
+    { key: 'onay', label: 'ONAY' },
+    { key: 'ofisteDurumu', label: 'DURUM' }
 ];
 
 const HEADER_ALIASES = {
@@ -136,6 +138,7 @@ const normalizeRecord = (record, index) => {
         mintika: safeRecord.mintika ?? '',
         okuma: safeRecord.okuma ?? '',
         onay: safeRecord.onay ?? '',
+        ofisteDurumu: safeRecord.ofisteDurumu ?? 'bilinmiyor',
         createdAt: safeRecord.createdAt ?? ''
     };
 };
@@ -225,6 +228,8 @@ const AcceptanceProgram = () => {
     const [editError, setEditError] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [statusUpdateValue, setStatusUpdateValue] = useState('');
 
     const fileInputRef = useRef(null);
     const selectAllRef = useRef(null);
@@ -351,7 +356,8 @@ const AcceptanceProgram = () => {
             telefon: record.telefon ?? '',
             uuid: record.uuid ?? '',
             okuma: record.okuma ?? '',
-            onay: record.onay ?? ''
+            onay: record.onay ?? '',
+            ofisteDurumu: record.ofisteDurumu ?? 'bilinmiyor'
         });
         setEditError('');
         setIsEditModalOpen(true);
@@ -535,6 +541,61 @@ const AcceptanceProgram = () => {
         }
     };
 
+    const handleBulkStatusUpdate = async () => {
+        if (!statusUpdateValue || selectedIds.length === 0) {
+            alert('Lütfen bir durum seçin.');
+            return;
+        }
+
+        setUpdatingStatus(true);
+        try {
+            console.log('=== BULK STATUS UPDATE DEBUG ===');
+            console.log('Selected IDs:', selectedIds);
+            console.log('Status value:', statusUpdateValue);
+            console.log('API URL:', axios.defaults.baseURL + '/acceptance-program/bulk-status');
+            
+            const res = await axios.patch('/acceptance-program/bulk-status', {
+                recordIds: selectedIds,
+                ofisteDurumu: statusUpdateValue
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Bulk status response:', res.data);
+            alert(res.data?.message || 'Durum başarıyla güncellendi.');
+            setStatusUpdateValue('');
+            fetchRecords();
+        } catch (error) {
+            console.error('=== BULK STATUS ERROR ===');
+            console.error('Error:', error);
+            console.error('Error message:', error.message);
+            console.error('Error response:', error.response);
+            console.error('Error response data:', error.response?.data);
+            console.error('Error response status:', error.response?.status);
+            console.error('Error request:', error.request);
+            
+            const errorMsg = error.response?.data?.message 
+                || error.message 
+                || 'Bilinmeyen hata oluştu.';
+            alert('Durum güncellenemedi: ' + errorMsg);
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    const getOfficeStatusBadge = (status) => {
+        switch (status) {
+            case 'ofiste':
+                return { label: 'Ofiste', className: 'bg-green-100 text-green-700 border-green-200' };
+            case 'ofiste-degil':
+                return { label: 'Ofiste Değil', className: 'bg-red-100 text-red-700 border-red-200' };
+            default:
+                return { label: 'Bilinmiyor', className: 'bg-gray-100 text-gray-600 border-gray-200' };
+        }
+    };
+
     const tableColSpan = COLUMNS.length + 2;
 
     return (
@@ -593,14 +654,14 @@ const AcceptanceProgram = () => {
             )}
 
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 sm:p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                     <div className="sm:col-span-2 relative">
                         <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
-                            placeholder="Tabloda ara (kurum, soyadı, telefon, UUID...)"
+                            placeholder="Tabloda ara..."
                             className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                         />
                     </div>
@@ -617,15 +678,42 @@ const AcceptanceProgram = () => {
                     </select>
                 </div>
 
-                <div className="mt-3 flex justify-end">
-                    <button
-                        onClick={handleSendWhatsApp}
-                        disabled={sendingWhatsApp || selectedIds.length === 0}
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <MessageCircle className="w-4 h-4" />
-                        {sendingWhatsApp ? 'Gonderiliyor...' : `Secilenlere WhatsApp Gonder (${selectedIds.length})`}
-                    </button>
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                    {/* Action Bar - shows only when items are selected */}
+                    {selectedIds.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm text-gray-600 font-medium">
+                                {selectedIds.length} kişi seçildi
+                            </span>
+                            <button
+                                onClick={handleSendWhatsApp}
+                                disabled={sendingWhatsApp}
+                                className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <MessageCircle className="w-3 h-3" />
+                                {sendingWhatsApp ? 'Gönderiliyor...' : 'WhatsApp'}
+                            </button>
+                            <select
+                                value={statusUpdateValue}
+                                onChange={(e) => setStatusUpdateValue(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-2 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            >
+                                <option value="">Durum</option>
+                                <option value="ofiste">Ofiste</option>
+                                <option value="ofiste-degil">Ofiste Değil</option>
+                                <option value="bilinmiyor">Bilinmiyor</option>
+                            </select>
+                            <button
+                                onClick={handleBulkStatusUpdate}
+                                disabled={updatingStatus || !statusUpdateValue}
+                                className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {updatingStatus ? '...' : 'Uygula'}
+                            </button>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-gray-400">Satırları seçmek için checkbox'ları kullanın</span>
+                    )}
                 </div>
             </div>
 
@@ -646,27 +734,37 @@ const AcceptanceProgram = () => {
                     {!loading && filteredRecords.map((record, index) => (
                         <div key={record.id || `${record.uuid}-${index}`} className="border border-gray-200 rounded-lg p-3 space-y-3">
                             <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <p className="text-xs text-gray-500">S.NO</p>
-                                    <p className="text-sm font-semibold text-gray-900">{record.siraNo}</p>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={!!record.id && selectedIds.includes(record.id)}
+                                        onChange={(e) => handleSelectRow(record.id, e.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        aria-label={`Kaydı seç ${record.siraNo}`}
+                                        disabled={!record.id}
+                                    />
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900">{getDisplayValue(record, 'adiSoyadi') || '-'}</p>
+                                        <p className="text-xs text-gray-500">{record.kurumAdi || '-'}</p>
+                                    </div>
                                 </div>
-                                <input
-                                    type="checkbox"
-                                    checked={!!record.id && selectedIds.includes(record.id)}
-                                    onChange={(e) => handleSelectRow(record.id, e.target.checked)}
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    aria-label={`Kaydı seç ${record.siraNo}`}
-                                    disabled={!record.id}
-                                />
+                                {(() => {
+                                    const badge = getOfficeStatusBadge(record.ofisteDurumu);
+                                    return (
+                                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${badge.className}`}>
+                                            {badge.label}
+                                        </span>
+                                    );
+                                })()}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs">
                                 <div>
                                     <p className="text-gray-500">Kabul Tarihi</p>
                                     <p className="text-gray-800">{getDisplayValue(record, 'kabulProgrami') || '-'}</p>
                                 </div>
                                 <div>
-                                    <p className="text-gray-500">Bölge {'>'} Mıntıka</p>
+                                    <p className="text-gray-500">Bölge &gt; Mıntıka</p>
                                     <p className="text-gray-800">{getDisplayValue(record, 'bolgeMintika') || '-'}</p>
                                 </div>
                                 <div>
@@ -685,9 +783,9 @@ const AcceptanceProgram = () => {
                                     <p className="text-gray-500">Telefon</p>
                                     <p className="text-gray-800">{record.telefon || '-'}</p>
                                 </div>
-                                <div className="col-span-2">
+                                <div className="col-span-1 sm:col-span-2">
                                     <p className="text-gray-500">UUID</p>
-                                    <p className="text-gray-800 break-all">{record.uuid || '-'}</p>
+                                    <p className="text-gray-800 break-all text-[10px]">{record.uuid || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-gray-500">Okuma</p>
@@ -699,7 +797,7 @@ const AcceptanceProgram = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-end gap-2 pt-1">
+                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-100">
                                 <button
                                     onClick={() => openEditModal(record)}
                                     className="inline-flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded-md"
@@ -783,6 +881,16 @@ const AcceptanceProgram = () => {
                                     <td className="px-4 py-3 text-xs text-gray-600 max-w-44 truncate" title={record.uuid}>{record.uuid}</td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{record.okuma}</td>
                                     <td className="px-4 py-3 text-sm text-gray-700">{record.onay}</td>
+                                    <td className="px-4 py-3">
+                                        {(() => {
+                                            const badge = getOfficeStatusBadge(record.ofisteDurumu);
+                                            return (
+                                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${badge.className}`}>
+                                                    {badge.label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </td>
                                     <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
                                         <button
                                             onClick={() => openEditModal(record)}
@@ -960,15 +1068,30 @@ const AcceptanceProgram = () => {
                                         <label className="block text-xs font-medium text-gray-600 mb-1">
                                             {column.label}
                                         </label>
-                                        <input
-                                            type="text"
-                                            value={editForm[column.key] ?? ''}
-                                            onChange={(e) => setEditForm((prev) => ({
-                                                ...prev,
-                                                [column.key]: e.target.value
-                                            }))}
-                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                        />
+                                        {column.key === 'ofisteDurumu' ? (
+                                            <select
+                                                value={editForm[column.key] ?? 'bilinmiyor'}
+                                                onChange={(e) => setEditForm((prev) => ({
+                                                    ...prev,
+                                                    [column.key]: e.target.value
+                                                }))}
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            >
+                                                <option value="bilinmiyor">Bilinmiyor</option>
+                                                <option value="ofiste">Ofiste</option>
+                                                <option value="ofiste-degil">Ofiste Değil</option>
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                value={editForm[column.key] ?? ''}
+                                                onChange={(e) => setEditForm((prev) => ({
+                                                    ...prev,
+                                                    [column.key]: e.target.value
+                                                }))}
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                            />
+                                        )}
                                     </div>
                                 ))}
                             </div>

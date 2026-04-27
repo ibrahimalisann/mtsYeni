@@ -15,6 +15,14 @@ const acceptanceProgramSchema = new mongoose.Schema({
     sonOkumaTarihi: { type: Date },
     onay: { type: String, default: '' },
     onayTarihi: { type: Date },
+    // Ofiste bulunma durumu
+    ofisteDurumu: { 
+        type: String, 
+        enum: ['ofiste', 'ofiste-degil', 'bilinmiyor'], 
+        default: 'bilinmiyor' 
+    },
+    ofisteDurumuGuncellemeTarihi: { type: Date },
+    ofisteDurumuGuncelleyen: { type: String },
     whatsappStatus: { type: String, default: 'pending', enum: ['pending', 'sent', 'failed'] },
     whatsappSentAt: { type: Date },
     whatsappError: { type: String },

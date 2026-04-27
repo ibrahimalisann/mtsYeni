@@ -419,7 +419,6 @@ const RoomAssignModal = ({ reservation, onClose, onUpdate }) => {
 
         // Check capacity if dropping on a room
         if (targetRoomName && targetRoomName !== 'unassigned') {
-            const room = rooms.find(r => r.name === targetRoomName);
             const info = occupancyInfo[targetRoomName];
             const currentAssigned = Object.values(assignments).filter(r => r === targetRoomName).length;
 
