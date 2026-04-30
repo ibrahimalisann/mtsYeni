@@ -90,7 +90,20 @@ router.get('/check-availability', async (req, res) => {
 
         // Calculate used capacity
         const totalGuests = reservations.reduce((sum, r) => sum + r.guestCount, 0);
-        const MAX_CAPACITY = 9;
+        // Read maxCapacity from settings.json
+        const fs = require('fs').promises;
+        const path = require('path');
+        const settingsPath = path.join(__dirname, '../data/settings.json');
+        let MAX_CAPACITY = 9;
+        try {
+            const settingsRaw = await fs.readFile(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsRaw);
+            if (settings.maxCapacity && Number.isFinite(settings.maxCapacity)) {
+                MAX_CAPACITY = settings.maxCapacity;
+            }
+        } catch (err) {
+            // fallback to default
+        }
         const available = Math.max(0, MAX_CAPACITY - totalGuests);
 
         res.json({
@@ -164,7 +177,20 @@ router.post('/', (req, res, next) => {
 
         // Calculate used capacity
         const totalGuests = overlappingReservations.reduce((sum, r) => sum + r.guestCount, 0);
-        const MAX_CAPACITY = 9;
+        // Read maxCapacity from settings.json
+        const fs = require('fs').promises;
+        const path = require('path');
+        const settingsPath = path.join(__dirname, '../data/settings.json');
+        let MAX_CAPACITY = 9;
+        try {
+            const settingsRaw = await fs.readFile(settingsPath, 'utf8');
+            const settings = JSON.parse(settingsRaw);
+            if (settings.maxCapacity && Number.isFinite(settings.maxCapacity)) {
+                MAX_CAPACITY = settings.maxCapacity;
+            }
+        } catch (err) {
+            // fallback to default
+        }
         const available = Math.max(0, MAX_CAPACITY - totalGuests);
         const requestedGuests = parseInt(guestCount) || 1;
 
