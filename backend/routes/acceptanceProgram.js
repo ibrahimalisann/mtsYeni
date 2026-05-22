@@ -1,12 +1,11 @@
 const express = require('express');
-const router = express.Router();
-const fs = require('fs').promises;
-const path = require('path');
+const mongoose = require('mongoose');
 const crypto = require('crypto');
 const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 const { sendWhatsAppMessage } = require('../utils/whatsapp');
+const AcceptanceProgram = require('../models/AcceptanceProgram');
 
-const ACCEPTANCE_FILE = path.join(__dirname, '../data/acceptanceProgram.json');
+const router = express.Router();
 const DEFAULT_INVITE_BASE_URL = process.env.DAVET_BASE_URL || '';
 
 function isPrivateOrLocalHostname(hostname) {
@@ -29,6 +28,12 @@ function isPrivateOrLocalHostname(hostname) {
     return false;
 }
 
+function normalizeInviteBaseUrl(baseUrl) {
+    const resolvedBase = String(baseUrl || '').trim();
+    if (!resolvedBase) return '';
+    return resolvedBase.replace(/\/+$/, '');
+}
+
 function isPublicInviteBaseUrl(baseUrl) {
     const normalized = normalizeInviteBaseUrl(baseUrl);
     if (!normalized) return false;
@@ -41,12 +46,6 @@ function isPublicInviteBaseUrl(baseUrl) {
     } catch {
         return false;
     }
-}
-
-function normalizeInviteBaseUrl(baseUrl) {
-    const resolvedBase = String(baseUrl || '').trim();
-    if (!resolvedBase) return '';
-    return resolvedBase.replace(/\/+$/, '');
 }
 
 function buildInviteUrl(uuid, inviteBaseUrl) {
@@ -122,54 +121,6 @@ function buildInviteMessage(record, options = {}) {
     ].join('\n');
 }
 
-async function readAcceptanceData() {
-    try {
-        const raw = await fs.readFile(ACCEPTANCE_FILE, 'utf8');
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed.records) ? parsed : { records: [] };
-    } catch (error) {
-        console.error('Error reading acceptance program data:', error);
-        return { records: [] };
-    }
-}
-
-async function writeAcceptanceData(data) {
-    try {
-        await fs.writeFile(ACCEPTANCE_FILE, JSON.stringify(data, null, 2), 'utf8');
-        return true;
-    } catch (error) {
-        console.error('Error writing acceptance program data:', error);
-        return false;
-    }
-}
-
-function normalizeRecord(record, index) {
-    const now = new Date().toISOString();
-    return {
-        id: record.id || `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-        siraNo: record.siraNo ?? '',
-        kabulProgrami: record.kabulProgrami ?? '',
-        kurumAdi: record.kurumAdi ?? '',
-        adiSoyadi: record.adiSoyadi ?? record.soyadi ?? '',
-        soyadi: record.soyadi ?? '',
-        vazife: record.vazife ?? '',
-        telefon: record.telefon ?? '',
-        uuid: record.uuid || generateUuid(),
-        bolge: record.bolge ?? '',
-        mintika: record.mintika ?? '',
-        okuma: record.okuma ?? '',
-        onay: record.onay ?? '',
-        whatsappStatus: record.whatsappStatus || 'pending',
-        whatsappSentAt: record.whatsappSentAt || null,
-        whatsappError: record.whatsappError || null,
-        ofisteDurumu: record.ofisteDurumu || 'bilinmiyor',
-        ofisteDurumuGuncellemeTarihi: record.ofisteDurumuGuncellemeTarihi || null,
-        ofisteDurumuGuncelleyen: record.ofisteDurumuGuncelleyen || null,
-        createdAt: record.createdAt || now,
-        createdBy: record.createdBy || null
-    };
-}
-
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -193,51 +144,81 @@ function normalizeOkumaCount(value) {
     return current;
 }
 
+function normalizeRecord(record, index) {
+    const now = new Date();
+    return {
+        siraNo: record.siraNo ?? '',
+        kabulProgrami: record.kabulProgrami ?? '',
+        kurumAdi: record.kurumAdi ?? '',
+        adiSoyadi: record.adiSoyadi ?? record.soyadi ?? '',
+        soyadi: record.soyadi ?? '',
+        vazife: record.vazife ?? '',
+        telefon: record.telefon ?? '',
+        uuid: record.uuid || generateUuid(),
+        bolge: record.bolge ?? '',
+        mintika: record.mintika ?? '',
+        okuma: Number.isFinite(Number(record.okuma)) ? Number(record.okuma) : 0,
+        onay: record.onay ?? '',
+        whatsappStatus: record.whatsappStatus || 'pending',
+        whatsappSentAt: record.whatsappSentAt || null,
+        whatsappError: record.whatsappError || null,
+        ofisteDurumu: record.ofisteDurumu || 'bilinmiyor',
+        ofisteDurumuGuncellemeTarihi: record.ofisteDurumuGuncellemeTarihi ? new Date(record.ofisteDurumuGuncellemeTarihi) : null,
+        ofisteDurumuGuncelleyen: record.ofisteDurumuGuncelleyen ?? null,
+        createdAt: record.createdAt ? new Date(record.createdAt) : now,
+        createdBy: record.createdBy ?? null,
+        updatedAt: record.updatedAt ? new Date(record.updatedAt) : now,
+        updatedBy: record.updatedBy ?? null
+    };
+}
+
+function mapRecord(record) {
+    const doc = record && typeof record.toObject === 'function' ? record.toObject() : record;
+    return {
+        ...doc,
+        id: String(doc._id || doc.id || ''),
+        _id: undefined
+    };
+}
+
 router.get('/', verifyToken, async (req, res) => {
     try {
-        const data = await readAcceptanceData();
-        res.json(data.records);
+        const records = await AcceptanceProgram.find().sort({ createdAt: -1 });
+        res.json(records.map(mapRecord));
     } catch (error) {
-        res.status(500).json({ message: 'Kabul programı verileri alınamadı.' });
+        console.error('Error fetching acceptance program records:', error);
+        res.status(500).json({ message: 'Kabul programi verileri alinamadi.' });
     }
 });
 
 router.get('/public/:uuid', async (req, res) => {
     try {
         const { uuid } = req.params;
-        const data = await readAcceptanceData();
-        const index = data.records.findIndex((item) => item.uuid === uuid);
-        const record = index === -1 ? null : data.records[index];
+        const record = await AcceptanceProgram.findOne({ uuid });
 
         if (!record) {
             return res.status(404).json({ message: 'Davet kaydi bulunamadi.' });
         }
 
         const now = Date.now();
-        const lastReadAt = Date.parse(record.sonOkumaTarihi || '');
-        const hasRecentRead = Number.isFinite(lastReadAt) && now - lastReadAt < 2000;
+        const lastReadAt = record.sonOkumaTarihi ? new Date(record.sonOkumaTarihi).getTime() : 0;
+        const hasRecentRead = lastReadAt > 0 && now - lastReadAt < 2000;
         const nextOkuma = hasRecentRead
             ? normalizeOkumaCount(record.okuma)
             : incrementOkumaCount(record.okuma);
 
-        data.records[index] = {
-            ...record,
-            okuma: nextOkuma,
-            sonOkumaTarihi: hasRecentRead ? record.sonOkumaTarihi : new Date(now).toISOString()
-        };
-
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Okuma bilgisi kaydedilemedi.' });
-        }
+        record.okuma = nextOkuma;
+        record.sonOkumaTarihi = hasRecentRead ? record.sonOkumaTarihi : new Date();
+        await record.save();
 
         res.json({
-            uuid: data.records[index].uuid,
-            adiSoyadi: data.records[index].adiSoyadi || data.records[index].soyadi || '',
-            kabulProgrami: data.records[index].kabulProgrami,
-            onay: data.records[index].onay || ''
+            uuid: record.uuid,
+            adiSoyadi: record.adiSoyadi || record.soyadi || '',
+            kabulProgrami: record.kabulProgrami,
+            onay: record.onay || ''
         });
     } catch (error) {
+        console.error('Error fetching public acceptance record:', error);
         res.status(500).json({ message: 'Davet bilgisi alinamadi.' });
     }
 });
@@ -245,29 +226,22 @@ router.get('/public/:uuid', async (req, res) => {
 router.post('/public/:uuid/confirm', async (req, res) => {
     try {
         const { uuid } = req.params;
-        const data = await readAcceptanceData();
-        const index = data.records.findIndex((item) => item.uuid === uuid);
+        const record = await AcceptanceProgram.findOne({ uuid });
 
-        if (index === -1) {
+        if (!record) {
             return res.status(404).json({ message: 'Davet kaydi bulunamadi.' });
         }
 
-        data.records[index] = {
-            ...data.records[index],
-            onay: '✓',
-            onayTarihi: new Date().toISOString()
-        };
-
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Onay bilgisi kaydedilemedi.' });
-        }
+        record.onay = '✓';
+        record.onayTarihi = new Date();
+        await record.save();
 
         res.json({
             message: 'Katilim onayi alindi.',
-            onay: data.records[index].onay
+            onay: record.onay
         });
     } catch (error) {
+        console.error('Error confirming public acceptance record:', error);
         res.status(500).json({ message: 'Onay islemi sirasinda hata olustu.' });
     }
 });
@@ -277,32 +251,26 @@ router.post('/bulk', verifyToken, requireAdmin, async (req, res) => {
         const { records } = req.body;
 
         if (!Array.isArray(records) || records.length === 0) {
-            return res.status(400).json({ message: 'Eklenecek kayıt bulunamadı.' });
+            return res.status(400).json({ message: 'Eklenecek kayit bulunamadi.' });
         }
 
-        const data = await readAcceptanceData();
         const prepared = records.map((record, index) => normalizeRecord({
             ...record,
-            uuid: undefined,
+            uuid: record.uuid || undefined,
             whatsappStatus: 'pending',
             whatsappSentAt: null,
             whatsappError: null,
             createdBy: req.user?.username || 'unknown'
         }, index));
 
-        data.records.push(...prepared);
-
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Kayıtlar kaydedilemedi.' });
-        }
-
+        const inserted = await AcceptanceProgram.insertMany(prepared);
         res.status(201).json({
             message: 'Kayıtlar eklendi.',
-            addedCount: prepared.length,
-            records: prepared
+            addedCount: inserted.length,
+            records: inserted.map(mapRecord)
         });
     } catch (error) {
+        console.error('Error inserting acceptance records:', error);
         res.status(500).json({ message: 'Kayıtlar eklenemedi.', error: error.message });
     }
 });
@@ -314,11 +282,11 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
         const minQueueDelayMs = Number.parseInt(process.env.WHATSAPP_QUEUE_MIN_DELAY_MS || '15000', 10);
         const maxQueueDelayMs = Number.parseInt(process.env.WHATSAPP_QUEUE_MAX_DELAY_MS || '30000', 10);
 
-        const data = await readAcceptanceData();
-        const hasFilter = Array.isArray(recordIds) && recordIds.length > 0;
-        const targetRecords = hasFilter
-            ? data.records.filter((record) => recordIds.includes(record.id))
-            : data.records;
+        const query = Array.isArray(recordIds) && recordIds.length > 0
+            ? { _id: { $in: recordIds.filter((id) => mongoose.Types.ObjectId.isValid(id)) } }
+            : {};
+
+        const targetRecords = await AcceptanceProgram.find(query);
 
         if (targetRecords.length === 0) {
             return res.status(400).json({ message: 'Mesaj gönderilecek kayıt bulunamadı.' });
@@ -331,7 +299,8 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
         for (const record of targetRecords) {
             if (!record.telefon) {
                 record.whatsappStatus = 'failed';
-                record.whatsappError = 'Telefon numarası yok.';
+                record.whatsappError = 'Telefon numarasi yok.';
+                await record.save();
                 failed += 1;
                 continue;
             }
@@ -352,7 +321,7 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
             const ok = await sendWhatsAppMessage(record.telefon, resolvedMessage, { waToolboxUrl });
             if (ok) {
                 record.whatsappStatus = 'sent';
-                record.whatsappSentAt = new Date().toISOString();
+                record.whatsappSentAt = new Date();
                 record.whatsappError = null;
                 sent += 1;
             } else {
@@ -361,12 +330,8 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
                 failed += 1;
             }
 
+            await record.save();
             queuedSendCount += 1;
-        }
-
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'WhatsApp sonuçları kaydedilemedi.' });
         }
 
         res.json({
@@ -380,6 +345,7 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Error sending acceptance WhatsApp messages:', error);
         res.status(500).json({ message: 'WhatsApp gönderimi sırasında hata oluştu.', error: error.message });
     }
 });
@@ -387,31 +353,27 @@ router.post('/send-whatsapp', verifyToken, requireAdmin, async (req, res) => {
 router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await readAcceptanceData();
-        const index = data.records.findIndex((record) => record.id === id);
+        const record = await AcceptanceProgram.findById(id);
 
-        if (index === -1) {
+        if (!record) {
             return res.status(404).json({ message: 'Kayıt bulunamadı.' });
         }
 
-        const updated = normalizeRecord({
-            ...data.records[index],
+        const updatedValues = normalizeRecord({
+            ...record.toObject(),
             ...req.body,
             id,
-            uuid: data.records[index].uuid,
-            updatedAt: new Date().toISOString(),
+            uuid: record.uuid,
+            updatedAt: new Date(),
             updatedBy: req.user?.username || 'unknown'
-        }, index);
+        }, 0);
 
-        data.records[index] = updated;
+        record.set(updatedValues);
+        await record.save();
 
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Kayıt güncellenemedi.' });
-        }
-
-        res.json(updated);
+        res.json(mapRecord(record));
     } catch (error) {
+        console.error('Error updating acceptance record:', error);
         res.status(500).json({ message: 'Kayıt güncellenemedi.', error: error.message });
     }
 });
@@ -419,32 +381,21 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const data = await readAcceptanceData();
-        const index = data.records.findIndex((record) => record.id === id);
+        const record = await AcceptanceProgram.findByIdAndDelete(id);
 
-        if (index === -1) {
+        if (!record) {
             return res.status(404).json({ message: 'Kayıt bulunamadı.' });
-        }
-
-        data.records.splice(index, 1);
-
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Kayıt silinemedi.' });
         }
 
         res.json({ message: 'Kayıt silindi.' });
     } catch (error) {
+        console.error('Error deleting acceptance record:', error);
         res.status(500).json({ message: 'Kayıt silinemedi.', error: error.message });
     }
 });
 
-// PATCH bulk update office status
 router.patch('/bulk-status', verifyToken, requireAdmin, async (req, res) => {
     try {
-        console.log('Bulk status update request received:', req.body);
-        console.log('User:', req.user);
-        
         const { recordIds, ofisteDurumu } = req.body;
 
         if (!recordIds || !Array.isArray(recordIds) || recordIds.length === 0) {
@@ -456,29 +407,25 @@ router.patch('/bulk-status', verifyToken, requireAdmin, async (req, res) => {
             return res.status(400).json({ message: 'Geçersiz ofiste durumu. Geçerli değerler: ' + validStatuses.join(', ') });
         }
 
-        const data = await readAcceptanceData();
-        let updatedCount = 0;
+        const validIds = recordIds.filter((id) => mongoose.Types.ObjectId.isValid(id));
+        if (validIds.length === 0) {
+            return res.status(400).json({ message: 'Geçerli bir kayıt IDsi bulunamadi.' });
+        }
 
-        for (const recordId of recordIds) {
-            const index = data.records.findIndex((record) => record.id === recordId);
-            if (index !== -1) {
-                data.records[index].ofisteDurumu = ofisteDurumu;
-                data.records[index].ofisteDurumuGuncellemeTarihi = new Date().toISOString();
-                data.records[index].ofisteDurumuGuncelleyen = req.user?.username || 'unknown';
-                updatedCount++;
+        const result = await AcceptanceProgram.updateMany(
+            { _id: { $in: validIds } },
+            {
+                $set: {
+                    ofisteDurumu,
+                    ofisteDurumuGuncellemeTarihi: new Date(),
+                    ofisteDurumuGuncelleyen: req.user?.username || 'unknown'
+                }
             }
-        }
+        );
 
-        const success = await writeAcceptanceData(data);
-        if (!success) {
-            return res.status(500).json({ message: 'Durum güncellenemedi.' });
-        }
-
-        console.log(`Updated ${updatedCount} records with status: ${ofisteDurumu}`);
-        
-        res.json({ 
-            message: `${updatedCount} kaydın ofiste durumu güncellendi.`,
-            updatedCount,
+        res.json({
+            message: `${result.modifiedCount || 0} kaydın ofiste durumu güncellendi.`,
+            updatedCount: result.modifiedCount || 0,
             ofisteDurumu
         });
     } catch (error) {

@@ -567,7 +567,7 @@ const NewReservation = () => {
 
                     <div>
                         <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Notlar</label>
-                        <textarea name="notes" rows="3" value={formData.notes} onChange={handleChange} className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                        <textarea name="notes" rows="3" value={formData.notes} placeholder='Lütfen kişi sayısı ve nevi belirtin ...talebe ...hocaefendi' onChange={handleChange} className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                     </div>
 
                     <div>
