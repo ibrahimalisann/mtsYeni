@@ -235,7 +235,15 @@ const ReservationList = () => {
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
-                                                    onClick={() => setSelectedReservation(res)}
+                                                    onClick={async () => {
+                                                        try {
+                                                            const resp = await axios.get(`/reservations/${res._id}`);
+                                                            setSelectedReservation(resp.data);
+                                                        } catch (err) {
+                                                            console.error('Could not fetch reservation:', err);
+                                                            alert('Rezervasyon detayları alınamadı.');
+                                                        }
+                                                    }}
                                                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
                                                     title="Detayları Görüntüle"
                                                 >
@@ -323,7 +331,15 @@ const ReservationList = () => {
 
                                     <div className="flex justify-end gap-2 pt-2 border-t border-gray-50">
                                         <button
-                                            onClick={() => setSelectedReservation(res)}
+                                            onClick={async () => {
+                                                try {
+                                                    const resp = await axios.get(`/reservations/${res._id}`);
+                                                    setSelectedReservation(resp.data);
+                                                } catch (err) {
+                                                    console.error('Could not fetch reservation:', err);
+                                                    alert('Rezervasyon detayları alınamadı.');
+                                                }
+                                            }}
                                             className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                                         >
                                             <Eye className="w-3.5 h-3.5" />

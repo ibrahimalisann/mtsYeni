@@ -151,6 +151,12 @@ router.post('/', (req, res, next) => {
     });
 }, async (req, res) => {
     try {
+        // DEBUG: Log incoming neviCounts for troubleshooting FormData parsing
+        try {
+            console.log('POST /api/reservations - raw neviCounts:', req.body && req.body.neviCounts, 'typeof:', typeof (req.body && req.body.neviCounts));
+        } catch (logErr) {
+            console.error('Failed to log raw neviCounts:', logErr);
+        }
         let { guestId, guestCount, checkInDate, checkOutDate, notes, additionalGuests, assignedRooms, registrar } = req.body;
 
         // Parse JSON strings if they come as strings (due to FormData)
@@ -192,7 +198,42 @@ router.post('/', (req, res, next) => {
             // fallback to default
         }
         const available = Math.max(0, MAX_CAPACITY - totalGuests);
-        const requestedGuests = parseInt(guestCount) || 1;
+
+        // Support neviCounts breakdown from frontend. Parse if string and coerce.
+        let { neviCounts } = req.body;
+        console.log('POST /api/reservations - received neviCounts before parse:', neviCounts);
+        if (typeof neviCounts === 'string') {
+            try { neviCounts = JSON.parse(neviCounts); } catch (e) { neviCounts = null; }
+        }
+
+        const zeroCounts = { talebe: 0, hocaefendi: 0, ihvan: 0, muhibban: 0, diger: 0 };
+
+        // Coerce parsed neviCounts to integers if present
+        let parsedCounts = null;
+        if (neviCounts && typeof neviCounts === 'object') {
+            parsedCounts = {
+                talebe: parseInt(neviCounts.talebe || 0) || 0,
+                hocaefendi: parseInt(neviCounts.hocaefendi || 0) || 0,
+                ihvan: parseInt(neviCounts.ihvan || 0) || 0,
+                muhibban: parseInt(neviCounts.muhibban || 0) || 0,
+                diger: parseInt(neviCounts.diger || 0) || 0
+            };
+            console.log('POST /api/reservations - parsedCounts:', parsedCounts);
+        }
+
+        // Compute requestedGuests from parsedCounts if available, otherwise fallback to guestCount
+        let requestedGuests = 0;
+        if (parsedCounts) requestedGuests = Object.values(parsedCounts).reduce((s, v) => s + v, 0);
+        if (!requestedGuests) {
+            requestedGuests = parseInt(guestCount) || 1;
+        }
+
+        // Ensure we have final counts to persist: prefer parsedCounts if it sums to requestedGuests, else default to talebe=requestedGuests
+        let finalNeviCounts = parsedCounts;
+        if (!finalNeviCounts || Object.values(finalNeviCounts).reduce((s, v) => s + v, 0) !== requestedGuests) {
+            finalNeviCounts = { ...zeroCounts, talebe: requestedGuests };
+            console.log('POST /api/reservations - finalNeviCounts fallback applied:', finalNeviCounts);
+        }
 
         // Determine initial status based on availability
         let initialStatus = 'pending';
@@ -210,6 +251,7 @@ router.post('/', (req, res, next) => {
             checkOutDate,
             notes,
             additionalGuests,
+            neviCounts: finalNeviCounts,
             assignedRooms: assignedRooms || [],
             registrar,
             status: initialStatus,
@@ -343,7 +385,7 @@ Müsaitlik durumu ile alakalı sizlere en kısa sürede dönüş yapacağız.`;
 // PUT update reservation (protected - admin only)
 router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
     try {
-        const { assignedRooms, roomAssignments, status, notes, guestCount, checkInDate, checkOutDate, additionalGuests, registrar, rejectionReason } = req.body;
+        const { assignedRooms, roomAssignments, status, notes, guestCount, checkInDate, checkOutDate, additionalGuests, registrar, rejectionReason, neviCounts } = req.body;
 
         // Get previous state for comparison
         const previousReservation = await Reservation.findById(req.params.id).populate('guest');
@@ -362,6 +404,36 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
         if (status !== undefined) updateData.status = status;
         if (notes !== undefined) updateData.notes = notes;
         if (guestCount !== undefined) updateData.guestCount = guestCount;
+        if (neviCounts !== undefined) {
+            // If neviCounts is a string (FormData), try parse
+            let parsed = neviCounts;
+            if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed); } catch (e) { parsed = null; }
+            }
+            if (parsed && typeof parsed === 'object') {
+                // compute sum
+                let sum = 0;
+                const coerced = {
+                    talebe: parseInt(parsed.talebe || 0) || 0,
+                    hocaefendi: parseInt(parsed.hocaefendi || 0) || 0,
+                    ihvan: parseInt(parsed.ihvan || 0) || 0,
+                    muhibban: parseInt(parsed.muhibban || 0) || 0,
+                    diger: parseInt(parsed.diger || 0) || 0
+                };
+                for (const k of Object.keys(coerced)) {
+                    sum += coerced[k];
+                }
+                updateData.neviCounts = coerced;
+                updateData.guestCount = sum;
+            }
+        } else if (guestCount !== undefined) {
+            // If admin updated guestCount but didn't provide neviCounts, persist a default breakdown
+            const gc = parseInt(guestCount) || 0;
+            if (gc > 0) {
+                updateData.neviCounts = { talebe: gc, hocaefendi: 0, ihvan: 0, muhibban: 0, diger: 0 };
+                updateData.guestCount = gc;
+            }
+        }
         if (checkInDate !== undefined) updateData.checkInDate = checkInDate;
         if (checkOutDate !== undefined) updateData.checkOutDate = checkOutDate;
         if (additionalGuests !== undefined) updateData.additionalGuests = additionalGuests;

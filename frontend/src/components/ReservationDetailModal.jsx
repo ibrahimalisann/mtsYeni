@@ -18,6 +18,51 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
     const additionalGuests = reservation.additionalGuests || [];
     const totalGuests = reservation.guestCount;
 
+    // Compute neviCounts (prefer stored breakdown if available)
+    const normalizeNevi = (v) => {
+        if (!v) return 'talebe';
+        const s = String(v).toLowerCase();
+        if (s.includes('hoca')) return 'hocaefendi';
+        if (s.includes('tal')) return 'talebe';
+        if (s.includes('ihvan')) return 'ihvan';
+        if (s.includes('muh')) return 'muhibban';
+        return 'diger';
+    };
+
+    // Compute counts from guest data
+    const recomputedCounts = (() => {
+        const counts = { talebe: 0, hocaefendi: 0, ihvan: 0, muhibban: 0, diger: 0 };
+        const leaderNevi = normalizeNevi(reservation.guest?.nevi);
+        counts[leaderNevi] = (counts[leaderNevi] || 0) + 1;
+        for (const g of additionalGuests) {
+            const key = normalizeNevi(g.nevi);
+            counts[key] = (counts[key] || 0) + 1;
+        }
+        return counts;
+    })();
+
+    // If stored neviCounts exists but seems stale or sums don't match totalGuests, prefer recomputedCounts
+    const parseCounts = (c) => {
+        if (!c) return null;
+        try {
+            const obj = typeof c === 'string' ? JSON.parse(c) : c;
+            const coerced = {
+                talebe: parseInt(obj.talebe || 0) || 0,
+                hocaefendi: parseInt(obj.hocaefendi || 0) || 0,
+                ihvan: parseInt(obj.ihvan || 0) || 0,
+                muhibban: parseInt(obj.muhibban || 0) || 0,
+                diger: parseInt(obj.diger || 0) || 0
+            };
+            return coerced;
+        } catch (err) {
+            return null;
+        }
+    };
+
+    const storedCounts = parseCounts(reservation.neviCounts);
+    const sum = (o) => Object.values(o || {}).reduce((s, v) => s + (parseInt(v) || 0), 0);
+    const computedNeviCounts = (storedCounts && sum(storedCounts) === totalGuests) ? storedCounts : recomputedCounts;
+
     const handleConfirm = async () => {
         try {
             const res = await axios.put(`/reservations/${reservation._id}`, {
@@ -300,12 +345,22 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                             <Users className="w-5 h-5" />
                             Misafir Listesi ({totalGuests} Kişi)
                         </h4>
+                        {/* Nevi breakdown badges */}
+                        <div className="flex gap-2 mb-3">
+                            <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">Talebe: {computedNeviCounts.talebe}</span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">Hocaefendi: {computedNeviCounts.hocaefendi}</span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">İhvan: {computedNeviCounts.ihvan}</span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">Muhibban: {computedNeviCounts.muhibban}</span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700">Diğer: {computedNeviCounts.diger}</span>
+                        </div>
                         <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
                             <table className="w-full text-sm text-left">
                                 <thead className="bg-gray-100 text-gray-600 font-medium border-b border-gray-200">
                                     <tr>
                                         <th className="p-3">Ad Soyad</th>
                                         <th className="p-3">Telefon</th>
+                                        <th className="p-3">Nevi</th>
+                                        <th className="p-3">Açıklama</th>
                                         <th className="p-3">Durum</th>
                                     </tr>
                                 </thead>
@@ -314,6 +369,8 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                                     <tr className="bg-white">
                                         <td className="p-3 font-medium">{guest.firstName} {guest.lastName}</td>
                                         <td className="p-3 text-gray-500">{guest.phone}</td>
+                                        <td className="p-3 text-gray-600">{guest.nevi || '-'}</td>
+                                        <td className="p-3 text-gray-600">-</td>
                                         <td className="p-3"><span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Grup Başkanı</span></td>
                                     </tr>
                                     {/* Others */}
@@ -321,13 +378,15 @@ const ReservationDetailModal = ({ reservation, onClose, onUpdate }) => {
                                         <tr key={idx} className="bg-white">
                                             <td className="p-3">{g.firstName || '-'} {g.lastName || '-'}</td>
                                             <td className="p-3 text-gray-500">{g.phone || '-'}</td>
+                                            <td className="p-3 text-gray-600">{g.nevi || '-'}</td>
+                                            <td className="p-3 text-gray-600">{g.description || '-'}</td>
                                             <td className="p-3"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Misafir</span></td>
                                         </tr>
                                     ))}
                                     {/* Empty slots indicator if count > list */}
                                     {totalGuests > (1 + additionalGuests.length) && (
                                         <tr className="bg-white">
-                                            <td colSpan="3" className="p-3 text-gray-400 italic text-center">
+                                            <td colSpan="5" className="p-3 text-gray-400 italic text-center">
                                                 + {totalGuests - (1 + additionalGuests.length)} isimsiz misafir
                                             </td>
                                         </tr>

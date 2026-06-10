@@ -163,7 +163,15 @@ const CalendarView = ({ reservations, onUpdate }) => {
                                     return (
                                         <div
                                             key={res._id}
-                                            onClick={() => setSelectedReservation(res)}
+                                            onClick={async () => {
+                                                try {
+                                                    const resp = await axios.get(`/reservations/${res._id}`);
+                                                    setSelectedReservation(resp.data);
+                                                } catch (err) {
+                                                    console.error('Could not fetch reservation:', err);
+                                                    alert('Rezervasyon detayları alınamadı.');
+                                                }
+                                            }}
                                             className={`
                                                 text-[10px] px-1.5 py-1 border overflow-hidden cursor-pointer
                                                 hover:shadow-md hover:z-20 transition-all

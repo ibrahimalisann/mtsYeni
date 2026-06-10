@@ -10,7 +10,7 @@ import * as XLSX from 'xlsx';
 const NewReservation = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('individual'); // 'individual' or 'group'
+    const [activeTab, setActiveTab] = useState('group'); // 'individual' or 'group'
     const [showGuestList, setShowGuestList] = useState(false);
     const [detectedCountry] = useState('TR'); // Default to Turkey
     const [presets, setPresets] = useState([]);
@@ -42,6 +42,14 @@ const NewReservation = () => {
         checkInDate: '',
         checkOutDate: '',
         notes: ''
+    });
+
+    const [neviCounts, setNeviCounts] = useState({
+        talebe: 0,
+        hocaefendi: 0,
+        ihvan: 0,
+        muhibban: 0,
+        diger: 0
     });
 
     // Additional guests for group reservation
@@ -92,6 +100,38 @@ const NewReservation = () => {
         }
     }, [activeTab]);
 
+    // Recompute total guestCount when neviCounts or additionalGuests change
+    useEffect(() => {
+        const sum = Object.values(neviCounts).reduce((s, v) => s + (parseInt(v) || 0), 0);
+        setFormData(prev => ({ ...prev, guestCount: sum }));
+    }, [neviCounts]);
+
+    // If user edits additionalGuests manually, try to sync neviCounts from their 'nevi' field
+    useEffect(() => {
+        if (!showGuestList) return;
+
+        const normalizeNevi = (v) => {
+            if (!v) return 'talebe';
+            const s = String(v).toLowerCase();
+            if (s.includes('hoca')) return 'hocaefendi';
+            if (s.includes('tal')) return 'talebe';
+            if (s.includes('ihvan')) return 'ihvan';
+            if (s.includes('muh')) return 'muhibban';
+            return 'diger';
+        };
+
+        const counts = { talebe: 0, hocaefendi: 0, ihvan: 0, muhibban: 0, diger: 0 };
+        const leaderKey = normalizeNevi(formData.nevi);
+        counts[leaderKey] = (counts[leaderKey] || 0) + 1;
+
+        for (const g of additionalGuests) {
+            const key = normalizeNevi(g.nevi);
+            counts[key] = (counts[key] || 0) + 1;
+        }
+
+        setNeviCounts(counts);
+    }, [additionalGuests, formData.nevi, showGuestList]);
+
     // Construct empty slots for additional guests based on count
     useEffect(() => {
         if (activeTab === 'group' && showGuestList) {
@@ -109,7 +149,8 @@ const NewReservation = () => {
                         lastName: '',
                         phone: '',
                         email: '',
-                        nevi: ''
+                        nevi: '',
+                        description: ''
                     }));
                     return [...prev, ...newSlots];
                 } else {
@@ -134,6 +175,12 @@ const NewReservation = () => {
         } catch {
             return 'Geçerli bir telefon numarası giriniz';
         }
+    };
+
+    const normalizeCountInput = (value) => {
+        const cleaned = String(value).replace(/^0+(?=\d)/, '');
+        const parsed = parseInt(cleaned, 10);
+        return Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
     };
 
     // Validation helper component
@@ -256,27 +303,33 @@ const NewReservation = () => {
                 submissionData.append('additionalGuests', JSON.stringify(validGuests));
             }
 
+            // Include neviCounts breakdown (frontend is authoritative source for counts)
+            let sendNeviCounts = neviCounts;
+            if (activeTab !== 'group') {
+                // For individual reservations, ensure one count for the guest's nevi (or default talebe)
+                const key = (formData.nevi || 'talebe').toLowerCase();
+                const normalizedKey = key.includes('hoca') ? 'hocaefendi' : (key.includes('ihvan') ? 'ihvan' : (key.includes('muh') ? 'muhibban' : (key.includes('tal') ? 'talebe' : 'diger')));
+                sendNeviCounts = { talebe: 0, hocaefendi: 0, ihvan: 0, muhibban: 0, diger: 0 };
+                sendNeviCounts[normalizedKey] = 1;
+            }
+            submissionData.append('neviCounts', JSON.stringify(sendNeviCounts));
+
             // Append File
             if (ek1File) {
                 submissionData.append('ek1File', ek1File);
             }
 
-            const response = await axios.post('/reservations', submissionData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            // Let the browser set the correct multipart Content-Type (with boundary)
+            const response = await axios.post('/reservations', submissionData);
 
-            // Check availability result from response
-            const availabilityInfo = response.data?.availability;
-            if (availabilityInfo) {
-                if (availabilityInfo.isAvailable) {
-                    alert(`Rezervasyon oluşturuldu!\n\n${availabilityInfo.message}\n\nDurum: Müsaitlik Var (Onay Bekliyor)`);
-                } else {
-                    alert(`Rezervasyon oluşturuldu ancak müsaitlik yetersiz!\n\n${availabilityInfo.message}\n\nDurum: İptal (Otomatik)`);
-                }
+            const successMessage = 'Rezervasyon isteğiniz alınmıştır. Sizlere en kısa sürede dönüş yapılacaktır.';
+            window.confirm(successMessage);
+
+            if (activeTab === 'group') {
+                window.location.reload();
             } else {
-                alert('Rezervasyon başarıyla oluşturuldu!');
+                navigate('/');
             }
-            navigate('/');
         } catch (error) {
             console.error('Error creating reservation:', error);
             const errorMessage = error.response?.data?.message || 'Bir hata oluştu. Lütfen bilgileri kontrol edin.';
@@ -355,8 +408,7 @@ const NewReservation = () => {
                     lastName: leader['Soyad'] || leader['soyad'] || '',
                     phone: leader['Telefon'] || leader['telefon'] || '',
                     email: leader['Email'] || leader['email'] || '',
-                    nevi: leader['Nevi'] || leader['nevi'] || '',
-                    guestCount: jsonData.length
+                    nevi: leader['Nevi'] || leader['nevi'] || ''
                 }));
 
                 // Validate imported leader phone
@@ -374,11 +426,36 @@ const NewReservation = () => {
                         lastName: row['Soyad'] || row['soyad'] || '',
                         phone: row['Telefon'] || row['telefon'] || '',
                         email: row['Email'] || row['email'] || '',
-                        nevi: row['Nevi'] || row['nevi'] || ''
+                        nevi: row['Nevi'] || row['nevi'] || '',
+                        description: row['Açıklama'] || row['Aciklama'] || row['Description'] || ''
                     }));
                     setAdditionalGuests(guests);
                     setShowGuestList(true);
                 }
+
+                // Compute neviCounts from imported rows (leader + additional)
+                const normalizeNevi = (v) => {
+                    if (!v) return 'talebe';
+                    const s = String(v).toLowerCase();
+                    if (s.includes('hoca')) return 'hocaefendi';
+                    if (s.includes('tal')) return 'talebe';
+                    if (s.includes('ihvan')) return 'ihvan';
+                    if (s.includes('muh')) return 'muhibban';
+                    return 'diger';
+                };
+
+                const counts = { talebe: 0, hocaefendi: 0, ihvan: 0, muhibban: 0, diger: 0 };
+                const leaderNevi = normalizeNevi(leader['Nevi'] || leader['nevi']);
+                counts[leaderNevi] = (counts[leaderNevi] || 0) + 1;
+
+                if (jsonData.length > 1) {
+                    for (const row of jsonData.slice(1)) {
+                        const key = normalizeNevi(row['Nevi'] || row['nevi']);
+                        counts[key] = (counts[key] || 0) + 1;
+                    }
+                }
+
+                setNeviCounts(counts);
 
                 alert(`${jsonData.length} misafir başarıyla yüklendi! (1 Grup Başkanı + ${jsonData.length - 1} Ek Misafir)`);
 
@@ -400,8 +477,19 @@ const NewReservation = () => {
                 <p className="text-sm sm:text-base text-gray-500">Misafir kaydı ve konaklama detayları</p>
             </div>
 
-            {/* Tabs */}
+            {/* Tabs (group first) */}
             <div className="flex gap-2 sm:gap-4 mb-4 sm:mb-6">
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('group')}
+                    className={`flex items-center justify-center flex-1 py-2 sm:py-3 px-2 sm:px-4 rounded-lg sm:rounded-xl font-medium transition-all text-sm sm:text-base ${activeTab === 'group'
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'
+                        }`}
+                >
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+                    Grup
+                </button>
                 <button
                     type="button"
                     onClick={() => setActiveTab('individual')}
@@ -413,17 +501,6 @@ const NewReservation = () => {
                     <User className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Bireysel</span>
                     <span className="sm:hidden">Birey</span>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('group')}
-                    className={`flex items-center justify-center flex-1 py-2 sm:py-3 px-2 sm:px-4 rounded-lg sm:rounded-xl font-medium transition-all text-sm sm:text-base ${activeTab === 'group'
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
-                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-transparent'
-                        }`}
-                >
-                    <Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
-                    Grup
                 </button>
             </div>
 
@@ -521,20 +598,43 @@ const NewReservation = () => {
                     <h3 className="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2">Rezervasyon Detayları</h3>
 
                     <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                            {activeTab === 'group' ? 'Toplam Kişi Sayısı' : 'Kişi Sayısı'}
-                        </label>
-                        <input
-                            required
-                            type="number"
-                            min={activeTab === 'group' ? "2" : "1"}
-                            name="guestCount"
-                            value={formData.guestCount}
-                            onChange={handleChange}
-                            className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                        {activeTab === 'group' && (
-                            <p className="text-xs text-gray-500 mt-1">Grup başkanı dahil toplam sayı.</p>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Toplam Kişi Sayısı</label>
+
+                        {activeTab === 'group' ? (
+                            <div className="space-y-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    <div>
+                                        <label className="text-xs text-gray-600">Talebe (adet)</label>
+                                        <input type="number" min={0} value={neviCounts.talebe} onChange={(e) => setNeviCounts(prev => ({ ...prev, talebe: normalizeCountInput(e.target.value) }))} className="w-full p-2 text-sm rounded-lg border border-gray-200" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600">Hocaefendi (adet)</label>
+                                        <input type="number" min={0} value={neviCounts.hocaefendi} onChange={(e) => setNeviCounts(prev => ({ ...prev, hocaefendi: normalizeCountInput(e.target.value) }))} className="w-full p-2 text-sm rounded-lg border border-gray-200" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600">İhvan (adet)</label>
+                                        <input type="number" min={0} value={neviCounts.ihvan} onChange={(e) => setNeviCounts(prev => ({ ...prev, ihvan: normalizeCountInput(e.target.value) }))} className="w-full p-2 text-sm rounded-lg border border-gray-200" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600">Muhibban (adet)</label>
+                                        <input type="number" min={0} value={neviCounts.muhibban} onChange={(e) => setNeviCounts(prev => ({ ...prev, muhibban: normalizeCountInput(e.target.value) }))} className="w-full p-2 text-sm rounded-lg border border-gray-200" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600">Diğer (adet)</label>
+                                        <input type="number" min={0} value={neviCounts.diger} onChange={(e) => setNeviCounts(prev => ({ ...prev, diger: normalizeCountInput(e.target.value) }))} className="w-full p-2 text-sm rounded-lg border border-gray-200" />
+                                    </div>
+                                </div>
+
+                                <div className="pt-2">
+                                    <input type="number" readOnly value={formData.guestCount} className="w-full p-2 text-sm rounded-lg border border-gray-200 bg-gray-50" />
+                                    <p className="text-xs text-gray-500 mt-1">Adetlerin toplamı otomatik hesaplanır ve değiştirilemez.</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <input type="number" readOnly value={formData.guestCount || 1} className="w-full p-2 text-sm sm:text-base rounded-lg border border-gray-200 bg-gray-50" />
+                                <p className="text-xs text-gray-500 mt-1">Bireysel rezervasyon için toplam kişi otomatik 1'dir.</p>
+                            </div>
                         )}
                     </div>
 
@@ -757,6 +857,13 @@ const NewReservation = () => {
                                             placeholder="Örn: Hocaefendi, Talebe"
                                             value={guest.nevi || ''}
                                             onChange={(e) => handleAdditionalGuestChange(index, 'nevi', e.target.value)}
+                                            className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Açıklama (Kim olduğu)"
+                                            value={guest.description || ''}
+                                            onChange={(e) => handleAdditionalGuestChange(index, 'description', e.target.value)}
                                             className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
                                         />
                                     </div>

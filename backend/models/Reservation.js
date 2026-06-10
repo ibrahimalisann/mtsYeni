@@ -8,6 +8,7 @@ const reservationSchema = new mongoose.Schema({
         guestCount: { type: Number, required: true, min: 1 }
     }], // New: Guest count per room, e.g., [{roomName: 'Ferah', guestCount: 2}]
     guestCount: { type: Number, required: true, default: 1 }, // Added guest count
+    neviCounts: { type: Object }, // e.g. { talebe: 5, hocaefendi: 1, ihvan: 0, muhibban: 0, diger: 0 }
     checkInDate: { type: Date, required: true },
     checkOutDate: { type: Date, required: true },
     status: {
